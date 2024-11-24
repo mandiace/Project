@@ -4,3 +4,29 @@ author: "Mandi Acevedo, Kevin Velasco, Bela Walkin"
 format: html
 editor: visual
 ---
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(dplyr)
+
+```
+
+# Data cleaning
+
+## Download data
+```{r, warning=FALSE, message=FALSE}
+df <- read_csv("data/countypres_2000-2020.csv")
+
+```
+
+## Pivot wider
+```{r}
+clean_data <- df |> 
+  filter(mode == "TOTAL") |>
+  group_by(year, state, county_name) |>
+  mutate(share_of_votes = candidatevotes / totalvotes) |>
+  filter(share_of_votes == max(share_of_votes)) |>
+  ungroup()
+  
+```
+
