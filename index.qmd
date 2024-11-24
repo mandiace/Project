@@ -1,0 +1,6 @@
+---
+title: "Final Project"
+author: "Mandi Acevedo, Kevin Velasco, Bela Walkin"
+format: html
+editor: visual
+---
