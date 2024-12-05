@@ -8,25 +8,82 @@ editor: visual
 ```{r, warning=FALSE, message=FALSE}
 library(tidyverse)
 library(dplyr)
+library(tidyr)
+library(tidymodels)
+library(recipes)
 
 ```
 
 # Data cleaning
 
 ## Download data
+
 ```{r, warning=FALSE, message=FALSE}
 df <- read_csv("data/countypres_2000-2020.csv")
 
 ```
 
-## Pivot wider
+## Create Democrat/Republican margin for each county for each year
+
 ```{r}
 clean_data <- df |> 
   filter(mode == "TOTAL") |>
-  group_by(year, state, county_name) |>
-  mutate(share_of_votes = candidatevotes / totalvotes) |>
-  filter(share_of_votes == max(share_of_votes)) |>
-  ungroup()
+  filter(year >= 2016) |>
+  filter(party %in% c("DEMOCRAT", "REPUBLICAN")) |>
+  select(-candidate) |>
+  pivot_wider(names_from = party, values_from = candidatevotes) |>
+  mutate(margin = DEMOCRAT - REPUBLICAN,
+         winner = case_when(
+           margin > 0 ~ "DEMOCRAT",
+           margin < 0 ~ "REPUBLICAN"))
   
 ```
+
+## Add additional predictors
+
+# Set up testing environment
+
+## Initial split
+
+```{r}
+set.seed(12071999)
+
+modeling_sample <- initial_split(clean_data)
+
+train <- training(modeling_sample)
+test <- testing(modeling_sample)
+
+```
+
+## Exploratory analysis
+
+## V-fold cross-validation
+
+```{r, warning=FALSE, message=FALSE}
+
+train_folds <- vfold_cv(data = train, v = 10)
+
+```
+
+# Testing models
+
+## Create a recipe
+
+```{r}
+recipe <-
+  recipe(formula = margin ~ ., data = train) |>
+  step_naomit(all_predictors(), -all_outcomes()) |>
+  step_dummy(all_nominal(), -all_outcomes())
+
+```
+
+## LASSO
+
+## Decision Tree
+
+## KNN
+
+(Insert model here) has the lowest out of sample error rate
+
+# Final model estimation on 2024 data
 
