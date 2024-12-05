@@ -14,12 +14,14 @@ library(dplyr)
 # Data cleaning
 
 ## Download data
+
 ```{r, warning=FALSE, message=FALSE}
 df <- read_csv("data/countypres_2000-2020.csv")
 
 ```
 
 ## Pivot wider
+
 ```{r}
 clean_data <- df |> 
   filter(mode == "TOTAL") |>
@@ -29,4 +31,3 @@ clean_data <- df |>
   ungroup()
   
 ```
-
