@@ -87,3 +87,28 @@ recipe <-
 
 # Final model estimation on 2024 data
 
+
+
+## Mandi edits 
+
+clean_data$party <- factor(clean_data$party, levels = c("DEMOCRAT", "REPUBLICAN", "OTHER"))
+
+clean_data |> 
+  filter(party != "OTHER") |> 
+  mutate(party = factor(party)) |>  # Ensure 'party' is a factor
+  ggplot() +
+  geom_bar(aes(x = year, fill = party), position = "dodge") +
+  scale_fill_manual(values = c("DEMOCRAT" = "blue", "REPUBLICAN" = "red")) +
+  labs(title = "Number of County Wins", fill = "Party")
+
+This graph shows that more counties consistently vote for a republican candidate. This shows that a binary outcome variable of who won in that county might not be that useful for real world applications. A candidate winning more counties does not necessarily mean that the candidate will win the election on a national level. As we can see in the graph, the candidate who won the most number of counties in 2008 was republican, even though we know a democratic candidate won in 2008. This graph is a demonstration that predicting who wins a county might not be the most useful model for election related predictions. We chose to use margins of votes as our outcome variable because we can predict winners at the state level. State level winner is how electoral votes are allocated. Using margins of votes as an outcome variable allows us to predict winners at the state level, which makes this model more useful in predicting nationwide election results.
+ 
+
+
+# Choosing Prediction Variables 
+## Why did we choose these variables?
+The types of variables that we chose as predictors include economic variables, education, race/ethnicity, gender, age, and historical political outcomes at the county-level. It is our understanding that these types of characteristics of a county could have an association with who people vote for. 
+
+## How did we deal with missing 2020 and 2024 census data?
+2024 census data is not available since we are currently in 2024. We chose to use 2023 data to predict 2024 elections, since it is likely these predictors have not changed with much significance. We also use 2019 census data as predictors of the 2020 election result, since we use the prior year as a predictor in 2024. 
+
