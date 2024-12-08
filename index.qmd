@@ -23,11 +23,9 @@ df <- read_csv("data/countypres_2000-2020.csv")
 
 ```
 
-<<<<<<< HEAD
 ## Pivot wider
-=======
+
 ## Create Democrat/Republican margin for each county for each year
->>>>>>> 6976b84d4f14a3fadb4eacc516c21fd591c9a8d7
 
 ```{r}
 clean_data <- df |> 
@@ -42,8 +40,6 @@ clean_data <- df |>
            margin < 0 ~ "REPUBLICAN"))
   
 ```
-<<<<<<< HEAD
-=======
 
 ## Add additional predictors
 
@@ -93,4 +89,3 @@ recipe <-
 
 # Final model estimation on 2024 data
 
->>>>>>> 6976b84d4f14a3fadb4eacc516c21fd591c9a8d7
