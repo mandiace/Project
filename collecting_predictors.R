@@ -81,7 +81,8 @@ data2019 <- data2019 |>
          male_ratio_per_100_females,
          median_age,
          median_income,
-         median_housing_costs)
+         median_housing_costs) |> 
+  mutate(geoid = sub("^0+", "", geoid))
 
 data2019 |> 
   write_csv("data2019.csv")
@@ -158,7 +159,8 @@ data2022 <- data2022 |>
          male_ratio_per_100_females,
          median_age,
          median_income,
-         median_housing_costs)
+         median_housing_costs) |> 
+  mutate(geoid = sub("^0+", "", geoid))
 
 data2022 |> 
   write_csv("data2022.csv")
