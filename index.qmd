@@ -27,16 +27,25 @@ library(tidyverse)
 ### Download 2020/2016 election results data
 
 ```{r, warning=FALSE, message=FALSE}
-elections2016  <- read_csv("NAME")
+elections2016  <- read_csv("data/2016_US_County_Level_Presidential_Results.csv")
 
-elections2020  <- read_csv("NAME")
+elections2020  <- read_csv("data/2020_US_County_Level_Presidential_Results.csv")
 
 ```
 
 ### Merge 2020/2016 data into single file
 
 ```{r}
-elections2020_2016
+elections2020 <- elections2020 |>
+  mutate(county_fips = as.character(str_remove(county_fips, "^0"))) 
+
+elections2016 <- elections2016 |>
+  mutate(county_fips = as.character(combined_fips)) |>
+  select(-combined_fips)
+
+elections2020_2016 <- left_join(elections2020,
+                                elections2016,
+                                by = "county_fips")
 
 ```
 
@@ -131,14 +140,19 @@ elections2020_2016
 ### Download 2024 election results data
 
 ```{r}
-elections2024  <- read_csv("NAME")
+elections2024  <- read_csv("data/2024_US_County_Level_Presidential_Results.csv")
 
 ```
 
 ### Merge 2024/2020 data into single file
 
 ```{r}
-elections2024_2020
+elections2024 <- elections2024 |>
+  mutate(county_fips = as.character(str_remove(county_fips, "^0"))) 
+
+elections2024_2020 <- left_join(elections2024,
+                                elections2020,
+                                by = "county_fips")
 
 ```
 
