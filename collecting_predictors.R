@@ -7,8 +7,6 @@ library(tidycensus)
 library(httr)
 library(jsonlite)
 
-census_api_key("794708f156e5f9a870d2531bb80e777690f72326", install = TRUE)
-
 # 2019
 
 data2019 <- get_acs(dataset = "acs5",
@@ -164,6 +162,15 @@ data2022 <- data2022 |>
 
 data2022 |> 
   write_csv("data2022.csv")
+
+county_size <- read_table("data/2022_Gaz_counties_national.txt") |> 
+  select(GEOID, 
+         NAME,
+         ALAND_SQMI) |> 
+  rename(geoid = GEOID,
+         name = NAME,
+         aland_sqmi = ALAND_SQMI) |> 
+  mutate(geoid = sub("^0+", "", geoid))
 
 
 
