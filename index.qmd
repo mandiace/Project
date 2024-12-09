@@ -6,40 +6,228 @@ editor: visual
 ---
 
 ```{r, warning=FALSE, message=FALSE}
-library(tidyverse)
 library(dplyr)
-library(tidyr)
-library(tidymodels)
+library(httr)
+library(jsonlite)
+library(modelr)
 library(recipes)
+library(sf)
+library(stringr)
+library(tidycensus)
+library(tidymodels)
+library(tidyr)
+library(tidyverse)
 
 ```
 
-# Data cleaning
+# Data cleaning & structuring
 
-## Download data
+## 2020/2016 data
+
+### Download 2020/2016 election results data
 
 ```{r, warning=FALSE, message=FALSE}
-df <- read_csv("data/countypres_2000-2020.csv")
+elections2016  <- read_csv("NAME")
+
+elections2020  <- read_csv("NAME")
 
 ```
 
-## Create Democrat/Republican margin for each county for each year
+### Merge 2020/2016 data into single file
 
 ```{r}
-clean_data <- df |> 
-  filter(mode == "TOTAL") |>
-  filter(year >= 2016) |>
-  filter(party %in% c("DEMOCRAT", "REPUBLICAN")) |>
-  select(-candidate) |>
-  pivot_wider(names_from = party, values_from = candidatevotes) |>
-  mutate(margin = DEMOCRAT - REPUBLICAN,
-         winner = case_when(
-           margin > 0 ~ "DEMOCRAT",
-           margin < 0 ~ "REPUBLICAN"))
-  
+elections2020_2016
+
 ```
 
-## Add additional predictors
+### Download 2019 predictor data via API
+
+```{r, warning=FALSE, message=FALSE}
+
+predictors2019 <- get_acs(dataset = "acs5",
+                    year = 2019,
+                    geography = "county",
+                    variables = c(
+                      # educational attainment
+                      count18to24 = "S1501_C01_001",
+                      count24to34 = "S1501_C01_016",
+                      count35to44 = "S1501_C01_019",
+                      count45to64 = "S1501_C01_022",
+                      count65over = "S1501_C01_025",
+                      countlessthanhs = "S1501_C01_002",
+                      counthsgrad = "S1501_C01_003",
+                      countsomecollegeassociates = "S1501_C01_004",
+                      countbachhigher = "S1501_C01_005",
+                      # total population
+                      totalpopulation = "B01003_001",
+                      # demographic information
+                      maleratioper100females = "DP05_0004",
+                      medianage = "DP05_0018",
+                      countwhite = "DP05_0037",
+                      countblack = "DP05_0038",
+                      counthispanic = "DP05_0071",
+                      # income
+                      medianincome = "S1901_C01_012",
+                      medianhhincome = "S1901_C02_012",
+                      countbelowpoverty = "S1701_C02_001",
+                      medianhousingcosts = "S2503_C01_024",
+                      # employment
+                      countlaborforce16plus = "DP03_0002",
+                      countunemployedinlaborforce16plus = "DP03_0005")) |> 
+  select(!moe) |> 
+  pivot_wider(names_from = variable,
+              values_from = estimate)
+                      
+predictors2019 <- predictors2019 |> 
+  mutate(count18over = count18to24 + count24to34 + count35to44 + count45to64 + count65over,
+         prop_less_than_hs = countlessthanhs / count18to24,
+         prop_hs_grad = counthsgrad / count18to24,
+         prop_some_college_associates = countsomecollegeassociates / count18to24,
+         prop_bachelors_higher = countbachhigher / count18to24,
+         prop_65_years_older = count65over / totalpopulation,
+         prop_white = countwhite / totalpopulation,
+         prop_black = countblack / totalpopulation,
+         prop_hispanic = counthispanic / totalpopulation,
+         prop_below_poverty = countbelowpoverty / totalpopulation,
+         unemployment_rate = countunemployedinlaborforce16plus / countlaborforce16plus,
+         year = 2019) |> 
+  rename(male_ratio_per_100_females = maleratioper100females,
+         median_age = medianage,
+         median_income = medianincome, 
+         median_housing_costs = medianhousingcosts,
+         total_population = totalpopulation,
+         geoid = GEOID,
+         name = NAME) |> 
+  select(geoid,
+         name,
+         total_population,
+         prop_less_than_hs,
+         prop_hs_grad,
+         prop_some_college_associates,
+         prop_bachelors_higher,
+         prop_65_years_older,
+         prop_white,
+         prop_black,
+         prop_hispanic,
+         prop_below_poverty,
+         unemployment_rate,
+         male_ratio_per_100_females,
+         median_age,
+         median_income,
+         median_housing_costs) |> 
+  mutate(geoid = sub("^0+", "", geoid))
+
+```
+
+### Merge elections & predictor dataframes
+
+```{r}
+elections2020_2016
+
+```
+
+## 2024/2020 data 
+
+### Download 2024 election results data
+
+```{r}
+elections2024  <- read_csv("NAME")
+
+```
+
+### Merge 2024/2020 data into single file
+
+```{r}
+elections2024_2020
+
+```
+
+### Download 2022 predictor data via API
+
+```{r}
+
+predictors2022 <- get_acs(dataset = "acs5",
+                    year = 2022,
+                    geography = "county",
+                    variables = c(
+                      # educational attainment
+                      count18to24 = "S1501_C01_001",
+                      count24to34 = "S1501_C01_016",
+                      count35to44 = "S1501_C01_019",
+                      count45to64 = "S1501_C01_022",
+                      count65over = "S1501_C01_025",
+                      countlessthanhs = "S1501_C01_002",
+                      counthsgrad = "S1501_C01_003",
+                      countsomecollegeassociates = "S1501_C01_004",
+                      countbachhigher = "S1501_C01_005",
+                      # total population
+                      totalpopulation = "B01003_001",
+                      # demographic information
+                      maleratioper100females = "DP05_0004",
+                      medianage = "DP05_0018",
+                      countwhite = "DP05_0037",
+                      countblack = "DP05_0038",
+                      counthispanic = "DP05_0071",
+                      # income
+                      medianincome = "S1901_C01_012",
+                      medianhhincome = "S1901_C02_012",
+                      countbelowpoverty = "S1701_C02_001",
+                      medianhousingcosts = "S2503_C01_024",
+                      # employment
+                      countlaborforce16plus = "DP03_0002",
+                      countunemployedinlaborforce16plus = "DP03_0005")) |> 
+  select(!moe) |> 
+  pivot_wider(names_from = variable,
+              values_from = estimate)
+
+predictors2022 <- predictors2022 |> 
+  mutate(count18over = count18to24 + count24to34 + count35to44 + count45to64 + count65over,
+         prop_less_than_hs = countlessthanhs / count18to24,
+         prop_hs_grad = counthsgrad / count18to24,
+         prop_some_college_associates = countsomecollegeassociates / count18to24,
+         prop_bachelors_higher = countbachhigher / count18to24,
+         prop_65_years_older = count65over / totalpopulation,
+         prop_white = countwhite / totalpopulation,
+         prop_black = countblack / totalpopulation,
+         prop_hispanic = counthispanic / totalpopulation,
+         prop_below_poverty = countbelowpoverty / totalpopulation,
+         unemployment_rate = countunemployedinlaborforce16plus / countlaborforce16plus,
+         year = 2022) |> 
+  rename(male_ratio_per_100_females = maleratioper100females,
+         median_age = medianage,
+         median_income = medianincome, 
+         median_housing_costs = medianhousingcosts,
+         total_population = totalpopulation,
+         geoid = GEOID,
+         name = NAME) |> 
+  select(geoid,
+         name,
+         total_population,
+         prop_less_than_hs,
+         prop_hs_grad,
+         prop_some_college_associates,
+         prop_bachelors_higher,
+         prop_65_years_older,
+         prop_white,
+         prop_black,
+         prop_hispanic,
+         prop_below_poverty,
+         unemployment_rate,
+         male_ratio_per_100_females,
+         median_age,
+         median_income,
+         median_housing_costs) |> 
+  mutate(geoid = sub("^0+", "", geoid))
+
+```
+
+### Merge elections & predictor dataframes
+
+```{r}
+elections2024_2020
+
+```
+
 
 # Set up testing environment
 
@@ -57,6 +245,11 @@ test <- testing(modeling_sample)
 
 ## Exploratory analysis
 
+```{r}
+
+```
+
+
 ## V-fold cross-validation
 
 ```{r, warning=FALSE, message=FALSE}
@@ -64,6 +257,7 @@ test <- testing(modeling_sample)
 train_folds <- vfold_cv(data = train, v = 10)
 
 ```
+
 
 # Testing models
 
