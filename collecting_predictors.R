@@ -47,9 +47,13 @@ data2019 <- get_acs(dataset = "acs5",
                       medianhhincome = "S1901_C02_012",
                       countbelowpoverty = "S1701_C02_001",
                       medianhousingcosts = "S2503_C01_024",
+                      gini = "B19083_001",
                       # employment
                       countlaborforce16plus = "DP03_0002",
-                      countunemployedinlaborforce16plus = "DP03_0005")) |> 
+                      countunemployedinlaborforce16plus = "DP03_0005",
+                      # foreign born
+                      countforeignborncitizen = "B05002_013",
+                      countforeignbornundocumented = "B05002_021")) |> 
   select(!moe) |> 
   pivot_wider(names_from = variable,
               values_from = estimate)
@@ -60,12 +64,15 @@ data2019 <- data2019 |>
          prop_hs_grad = counthsgrad / count18to24,
          prop_some_college_associates = countsomecollegeassociates / count18to24,
          prop_bachelors_higher = countbachhigher / count18to24,
+         prop_18_to_24 = count18to24 / totalpopulation,
          prop_65_years_older = count65over / totalpopulation,
          prop_white = countwhite / totalpopulation,
          prop_black = countblack / totalpopulation,
          prop_hispanic = counthispanic / totalpopulation,
-         prop_below_poverty = countbelowpoverty / totalpopulation,
+         poverty_rate = countbelowpoverty / totalpopulation,
          unemployment_rate = countunemployedinlaborforce16plus / countlaborforce16plus,
+         prop_foreign_born_citizen = countforeignborncitizen / totalpopulation,
+         prop_undocumented = countforeignbornundocumented / totalpopulation,
          year = 2019) |> 
   rename(male_ratio_per_100_females = maleratioper100females,
          median_age = medianage,
@@ -81,16 +88,20 @@ data2019 <- data2019 |>
          prop_hs_grad,
          prop_some_college_associates,
          prop_bachelors_higher,
+         prop_18_to_24,
          prop_65_years_older,
          prop_white,
          prop_black,
          prop_hispanic,
-         prop_below_poverty,
+         poverty_rate,
          unemployment_rate,
          male_ratio_per_100_females,
          median_age,
          median_income,
-         median_housing_costs) |> 
+         gini,
+         median_housing_costs,
+         prop_foreign_born_citizen,
+         prop_undocumented) |> 
   mutate(geoid = sub("^0+", "", geoid))
 
 # merging county size predictors and calculating population density
@@ -135,9 +146,13 @@ data2022 <- get_acs(dataset = "acs5",
                       medianhhincome = "S1901_C02_012",
                       countbelowpoverty = "S1701_C02_001",
                       medianhousingcosts = "S2503_C01_024",
+                      gini = "B19083_001",
                       # employment
                       countlaborforce16plus = "DP03_0002",
-                      countunemployedinlaborforce16plus = "DP03_0005")) |> 
+                      countunemployedinlaborforce16plus = "DP03_0005",
+                      # foreign born
+                      countforeignborncitizen = "B05002_013",
+                      countforeignbornundocumented = "B05002_021")) |> 
   select(!moe) |> 
   pivot_wider(names_from = variable,
               values_from = estimate)
@@ -148,12 +163,15 @@ data2022 <- data2022 |>
          prop_hs_grad = counthsgrad / count18to24,
          prop_some_college_associates = countsomecollegeassociates / count18to24,
          prop_bachelors_higher = countbachhigher / count18to24,
+         prop_18_to_24 = count18to24 / totalpopulation,
          prop_65_years_older = count65over / totalpopulation,
          prop_white = countwhite / totalpopulation,
          prop_black = countblack / totalpopulation,
          prop_hispanic = counthispanic / totalpopulation,
-         prop_below_poverty = countbelowpoverty / totalpopulation,
+         poverty_rate = countbelowpoverty / totalpopulation,
          unemployment_rate = countunemployedinlaborforce16plus / countlaborforce16plus,
+         prop_foreign_born_citizen = countforeignborncitizen / totalpopulation,
+         prop_undocumented = countforeignbornundocumented / totalpopulation,
          year = 2022) |> 
   rename(male_ratio_per_100_females = maleratioper100females,
          median_age = medianage,
@@ -169,16 +187,20 @@ data2022 <- data2022 |>
          prop_hs_grad,
          prop_some_college_associates,
          prop_bachelors_higher,
+         prop_18_to_24,
          prop_65_years_older,
          prop_white,
          prop_black,
          prop_hispanic,
-         prop_below_poverty,
+         poverty_rate,
          unemployment_rate,
          male_ratio_per_100_females,
          median_age,
          median_income,
-         median_housing_costs) |> 
+         gini,
+         median_housing_costs,
+         prop_foreign_born_citizen,
+         prop_undocumented) |> 
   mutate(geoid = sub("^0+", "", geoid))
 
 # merging county size predictors and calculating population density
@@ -189,5 +211,7 @@ data2022 <- left_join(x = data2022,
   mutate(land_area = as.numeric(land_area),
          population_density = total_population / land_area)
 
+data2022 |> 
+  write_csv("data2022.csv")
 
 
