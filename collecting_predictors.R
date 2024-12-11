@@ -9,13 +9,11 @@ library(jsonlite)
 
 # loading county size predictors
 
-county_size <- read_table("data/2022_Gaz_counties_national.txt") |> 
-  select(GEOID, 
-         NAME,
-         ALAND_SQMI) |> 
-  rename(geoid = GEOID,
-         name = NAME,
-         aland_sqmi = ALAND_SQMI) |> 
+county_size <- read_csv("data/LND01.csv") |> 
+  select(STCOU,
+         LND010190D) |> 
+  rename(geoid = STCOU,
+         land_area = LND010190D) |> 
   mutate(geoid = sub("^0+", "", geoid))
 
 ### 2019
@@ -100,10 +98,8 @@ data2019 <- data2019 |>
 data2019 <- left_join(x = data2019,
                       y = county_size,
                       by = "geoid") |> 
-  select(!name.y) |> 
-  rename(name = name.x) |> 
-  mutate(population_density = total_population / aland_sqmi) |> 
-  select(!aland_sqmi)
+  mutate(land_area = as.numeric(land_area),
+         population_density = total_population / land_area)
 
 data2019 |> 
   write_csv("data2019.csv")
@@ -190,10 +186,8 @@ data2022 <- data2022 |>
 data2022 <- left_join(x = data2022,
                       y = county_size,
                       by = "geoid") |> 
-  select(!name.y) |> 
-  rename(name = name.x) |> 
-  mutate(population_density = total_population / aland_sqmi) |> 
-  select(!aland_sqmi)
+  mutate(land_area = as.numeric(land_area),
+         population_density = total_population / land_area)
 
 
 
