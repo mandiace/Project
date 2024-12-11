@@ -10,6 +10,7 @@ library(dplyr)
 library(httr)
 library(jsonlite)
 library(modelr)
+library(parsnip)
 library(recipes)
 library(sf)
 library(stringr)
@@ -47,17 +48,26 @@ elections2020_2016 <- left_join(elections2020,
                                 elections2016,
                                 by = "county_fips")
 
+colnames(elections2020_2016) <- gsub("\\.x$", "_current", colnames(elections2020_2016))
+colnames(elections2020_2016) <- gsub("\\.y$", "_previous", colnames(elections2020_2016))
+
+elections2020_2016 <- elections2020_2016 |>
+  mutate(county_name = county_name_current) |>
+  select(-county_name_previous, -county_name_current)
+
 ```
 
 ### Download county size data
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
+
 county_size <- read_csv("data/LND01.csv") |> 
   select(STCOU,
          LND010190D) |> 
   rename(geoid = STCOU,
          land_area = LND010190D) |> 
   mutate(geoid = sub("^0+", "", geoid))
+
 ```
 
 
@@ -173,7 +183,16 @@ predictors2019 <- left_join(x = predictors2019,
 ### Merge elections & predictor dataframes
 
 ```{r}
-elections2020_2016
+
+predictors2019 <- predictors2019 |>
+  mutate(county_fips = geoid) |>
+  select(-name, -geoid)
+  
+  
+finaldata2020 <- left_join(x = elections2020_2016,
+                      y = predictors2019,
+                      by = "county_fips") |>
+  na.omit()
 
 ```
 
@@ -181,14 +200,14 @@ elections2020_2016
 
 ### Download 2024 election results data
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 elections2024  <- read_csv("data/2024_US_County_Level_Presidential_Results.csv")
 
 ```
 
 ### Merge 2024/2020 data into single file
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 elections2024 <- elections2024 |>
   mutate(county_fips = as.character(str_remove(county_fips, "^0"))) 
 
@@ -196,11 +215,22 @@ elections2024_2020 <- left_join(elections2024,
                                 elections2020,
                                 by = "county_fips")
 
+colnames(elections2024_2020) <- gsub("\\.x$", "_current", colnames(elections2024_2020))
+colnames(elections2024_2020) <- gsub("\\.y$", "_previous", colnames(elections2024_2020))
+
+elections2024_2020 <- elections2024_2020 |>
+  mutate(county_name = county_name_current) |>
+  select(-county_name_previous, -county_name_current)
+
+elections2024_2020 <- elections2024_2020 |>
+  mutate(state_name = state_name_current) |>
+  select(-state_name_previous, -state_name_current)
+
 ```
 
 ### Download 2022 predictor data via API
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 # download county demographic data
 
@@ -301,18 +331,26 @@ predictors2022 <- left_join(x = predictors2022,
 ### Merge elections & predictor dataframes
 
 ```{r}
-elections2024_2020
+
+predictors2022 <- predictors2022 |>
+  mutate(county_fips = geoid) |>
+  select(-name, -geoid)
+  
+  
+finaldata2024 <- left_join(x = elections2024_2020,
+                      y = predictors2022,
+                      by = "county_fips") 
 
 ```
 
-# Set up testing environment
+# Set up testing environment using 2020 data
 
 ## Initial split
 
 ```{r}
 set.seed(12071999)
 
-modeling_sample <- initial_split(clean_data)
+modeling_sample <- initial_split(finaldata2020)
 
 train <- training(modeling_sample)
 test <- testing(modeling_sample)
@@ -333,19 +371,52 @@ train_folds <- vfold_cv(data = train, v = 10)
 
 ```
 
-# Testing models
+# Testing models using 2020 data
 
 ## Create a recipe
 
 ```{r}
 recipe <-
-  recipe(formula = margin ~ ., data = train) |>
-  step_naomit(all_predictors(), -all_outcomes()) |>
-  step_dummy(all_nominal(), -all_outcomes())
+  recipe(diff_current ~ diff_previous + prop_less_than_hs + prop_bachelors_higher + prop_18_to_24 + prop_65_years_older + prop_white + prop_black + prop_hispanic + poverty_rate + unemployment_rate + male_ratio_per_100_females + median_age + median_income + gini + median_housing_costs + prop_foreign_born_citizen + prop_undocumented + population_density,
+         data = train) |>
+  step_impute_knn(all_predictors()) |>
+  step_corr(all_predictors()) |>
+  step_log(median_income, median_housing_costs) |>
+  step_interact(terms =  ~ prop_black*gini)
 
 ```
 
+Justifications:
+
+step_impute_knn(all_predictors())
+
+step_corr(all_predictors())
+
+step_log(median_income, median_housing_costs)
+
+step_mutate(squared_median_age = median_age^2)
+
+step_interact(terms =  ~ prop_black*gini): we expect that the relationship between income inequality and voting outcomes (margins) changes based on the proportion of a county that is black
+
 ## LASSO
+
+```{r}
+lasso_spec <- linear_reg(penalty = 0.1, mixture = 1) |>
+    set_mode(mode = "regression") |>
+    set_engine(engine = "glmnet")
+
+lasso_wf <- workflow() |>
+    add_recipe(recipe) |>
+    add_model(lasso_spec)
+
+lasso_resamples <- fit_resamples(
+  lasso_wf,
+  resamples = train_folds)
+
+lasso_resamples |>
+  collect_metrics()
+
+```
 
 ## Decision Tree
 
