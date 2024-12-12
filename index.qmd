@@ -541,17 +541,26 @@ finalmodel_decision |>
 ## KNN
 
 ```{r}
+
+# check to see if there are any na values
+
 colSums(is.na(train)) > 0
 
 folds_knn <- vfold_cv(data = train, v = 10, repeats = 5)
+
+# construct the model
 
 model_knn <- 
   nearest_neighbor(neighbors = tune()) |> 
   set_engine(engine = "kknn") |> 
   set_mode(mode = "regression")
 
+# add the grid
+
 grid_knn <- grid_regular(neighbors(range = c(1,99)),
                          levels = 10)
+
+# same recipe
 
 recipe_knn <- train |> 
   recipe(diff_current ~ diff_previous + prop_less_than_hs + prop_bachelors_higher + prop_18_to_24 + prop_65_years_older + prop_white + prop_black + prop_hispanic + poverty_rate + unemployment_rate + male_ratio_per_100_females + median_age + median_income + gini + median_housing_costs + prop_foreign_born_citizen + prop_undocumented + population_density) |> 
@@ -559,6 +568,8 @@ recipe_knn <- train |>
   step_impute_knn(all_outcomes()) |>
   step_log(median_income, median_housing_costs, -all_outcomes()) |>
   step_interact(terms =  ~ prop_black*gini)
+
+# create a workflow
 
 workflow_knn <-
   workflow() |> 
@@ -571,6 +582,33 @@ res_knn <-
     resample = folds_knn,
     grid = grid_knn,
     metrics = metric_set(rmse))
+
+# collect rmse metrics
+
+res_knn |> 
+  collect_metrics()
+
+# show best model
+
+res_knn |> 
+  show_best()
+
+res_knn |> 
+  autoplot()
+
+# fit final knn model
+
+final_wf_knn <-
+  workflow_knn |> 
+  finalize_workflow(select_best(res_knn))
+
+final_fit_knn <-
+  final_wf_knn |> 
+  last_fit(modeling_sample)
+
+final_fit_knn |> 
+  collect_metrics
+  
 ```
 
 
