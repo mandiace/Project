@@ -84,6 +84,17 @@ county_size <- read_csv("data/LND01.csv") |>
          land_area = LND010190D) |> 
   mutate(geoid = sub("^0+", "", geoid))
 
+# manually inputting data on CT county-equivalents
+
+ct_county_eq_size <- data.frame(
+  geoid = c(9110, 9120, 9130, 9140, 9150, 9160, 9170, 9180, 9190),
+  land_area = c(1027.3, 140.2, 424.1, 412.8, 553.9, 786.6, 367.2, 598.1, 532.1)
+) |> 
+  mutate(geoid = as.character(geoid))
+
+county_size <- county_size |> 
+  bind_rows(ct_county_eq_size)
+
 # download county demographic data
 
 predictors2019 <- get_acs(dataset = "acs5",
