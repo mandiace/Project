@@ -459,7 +459,92 @@ lasso_resamples |>
 
 ## Decision Tree
 
+```{r}
+set.seed(20201020)
+
+# creating a recipe
+
+recipe_decision <- train |> 
+  recipe(diff_current ~ diff_previous + prop_less_than_hs + prop_bachelors_higher + prop_18_to_24 + prop_65_years_older + prop_white + prop_black + prop_hispanic + poverty_rate + unemployment_rate + male_ratio_per_100_females + median_age + median_income + gini + median_housing_costs + prop_foreign_born_citizen + prop_undocumented + population_density) |> 
+  step_impute_knn(all_predictors()) |>
+  step_corr(all_predictors()) |>
+  step_log(median_income, median_housing_costs, -all_outcomes()) |>
+  step_interact(terms =  ~ prop_black*gini)
+
+# creating a model
+
+model_decision <- 
+  decision_tree() |> 
+  set_engine(engine = "rpart") |> 
+  set_mode(mode = "regression")
+
+# creating a workflow
+
+workflow_decision <-
+  workflow() |> 
+  add_recipe(recipe_decision) |> 
+  add_model(model_decision)
+
+# fitting the data 
+
+fit_decision <- workflow_decision |> 
+  fit(data = finaldata2020)
+
+# generate predictions
+
+predictions_decision <- bind_cols(
+  test,
+  predict(object = fit_decision,
+          new_data = test)
+)
+
+# evaluate the model
+
+truth_decision <- predictions_decision |> 
+  group_by(state_name) |> 
+  summarize(sum_diff_current = sum(diff_current))
+
+pred_decision <- predictions_decision |> 
+  group_by(state_name) |> 
+  summarize(sum_diff_prediction = sum(.pred))
+
+finalmodel_decision <- truth_decision |> 
+  left_join(pred_decision, by = "state_name") |> 
+  mutate(difference_in_prediction = sum_diff_prediction - sum_diff_current,
+         actual_winner = if_else(sum_diff_current < 0, "DEM", "GOP"),
+         predicted_winner = if_else(sum_diff_prediction < 0, "DEM", "GOP"),
+         correct_prediction = if_else(actual_winner == predicted_winner, 1, 0))
+
+# loading electoral college
+
+electoral_college <- read_csv("data/Electoral_College.csv") |> 
+  select(!Abb_State) |> 
+  rename(state_name = Full_State)
+
+# merging decision tree final model with electoral college
+
+finalmodel_decision <- finalmodel_decision |> 
+  left_join(electoral_college, by = "state_name")
+
+# calculating presidential race winners
+
+finalmodel_decision |> 
+  group_by(actual_winner) |> 
+  summarize(sum_electoral_votes = sum(Electoral_College_Votes)) # actual winner was democrat with 316 electoral votes
+
+finalmodel_decision |> 
+  group_by(predicted_winner) |> 
+  summarize(sum_electoral_votes = sum(Electoral_College_Votes)) # predicted winner was democrat with 274 electoral votes
+  
+```
+
+
 ## KNN
+
+```{r}
+
+```
+
 
 (Insert model here) has the lowest out of sample error rate
 
