@@ -538,11 +538,39 @@ finalmodel_decision |>
   
 ```
 
-
 ## KNN
 
 ```{r}
+colSums(is.na(train)) > 0
 
+folds_knn <- vfold_cv(data = train, v = 10, repeats = 5)
+
+model_knn <- 
+  nearest_neighbor(neighbors = tune()) |> 
+  set_engine(engine = "kknn") |> 
+  set_mode(mode = "regression")
+
+grid_knn <- grid_regular(neighbors(range = c(1,99)),
+                         levels = 10)
+
+recipe_knn <- train |> 
+  recipe(diff_current ~ diff_previous + prop_less_than_hs + prop_bachelors_higher + prop_18_to_24 + prop_65_years_older + prop_white + prop_black + prop_hispanic + poverty_rate + unemployment_rate + male_ratio_per_100_females + median_age + median_income + gini + median_housing_costs + prop_foreign_born_citizen + prop_undocumented + population_density) |> 
+  step_impute_knn(all_predictors()) |>
+  step_impute_knn(all_outcomes()) |>
+  step_log(median_income, median_housing_costs, -all_outcomes()) |>
+  step_interact(terms =  ~ prop_black*gini)
+
+workflow_knn <-
+  workflow() |> 
+  add_recipe(recipe = recipe_knn) |> 
+  add_model(spec = model_knn)
+
+res_knn <-
+  workflow_knn |>  
+  tune_grid(
+    resample = folds_knn,
+    grid = grid_knn,
+    metrics = metric_set(rmse))
 ```
 
 
