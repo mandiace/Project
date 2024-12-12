@@ -208,6 +208,35 @@ elections2024  <- read_csv("data/2024_US_County_Level_Presidential_Results.csv")
 ### Merge 2024/2020 data into single file
 
 ```{r, warning=FALSE, message=FALSE}
+# fixing dc issue so that data for all wards is in one row
+
+dc_data <- elections2024 |>
+  filter(state_name == "District of Columbia") |>
+  mutate(
+    weighted_percent_votes_gop = per_gop * total_votes,
+    weighted_percent_votes_dem = per_dem * total_votes,
+    weighted_percent_points_diff = per_point_diff * total_votes
+  ) |> 
+  summarize(
+    county_fips = 11001,
+    votes_gop = sum(votes_gop),
+    votes_dem = sum(votes_dem),
+    total_votes = sum(total_votes),
+    diff = sum(diff),
+    per_gop = sum(weighted_percent_votes_gop) / sum(total_votes),
+    per_dem = sum(weighted_percent_votes_dem) / sum(total_votes),
+    per_point_diff = sum(weighted_percent_points_diff) / sum(total_votes),
+    state_name = "District of Columbia",
+    county_name = "District of Columbia"
+  ) |> 
+  mutate(county_fips = as.character(county_fips))
+
+elections2024 <- elections2024 |> 
+  filter(!county_fips %in% c(11001, 11002, 11003, 11004, 11005, 11006, 11007, 11008)) |> 
+  bind_rows(dc_data)
+
+# rest of merge
+
 elections2024 <- elections2024 |>
   mutate(county_fips = as.character(str_remove(county_fips, "^0"))) 
 
@@ -225,7 +254,6 @@ elections2024_2020 <- elections2024_2020 |>
 elections2024_2020 <- elections2024_2020 |>
   mutate(state_name = state_name_current) |>
   select(-state_name_previous, -state_name_current)
-
 ```
 
 ### Download 2022 predictor data via API
