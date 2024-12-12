@@ -42,7 +42,9 @@ elections2020 <- elections2020 |>
 
 elections2016 <- elections2016 |>
   mutate(county_fips = as.character(combined_fips)) |>
-  select(-combined_fips)
+  select(-combined_fips, -diff) |> 
+  mutate(diff = (votes_gop - votes_dem))
+  
 
 elections2020_2016 <- left_join(elections2020,
                                 elections2016,
@@ -69,7 +71,6 @@ county_size <- read_csv("data/LND01.csv") |>
   mutate(geoid = sub("^0+", "", geoid))
 
 ```
-
 
 ### Download 2019 predictor data via API
 
@@ -366,10 +367,13 @@ predictors2022 <- left_join(x = predictors2022,
          population_density = total_population / land_area)
 
 ```
+Why did we choose these predictors? 
+
+According to a study conducted by Kulachi et al. (2023), voting behavior is very dynamic. People's voting patterns depend on a culmination of numerous factors. Some factors shown to impact voting behavior that are included in this analysis are economic, gender, ethnicity and race, and age variables. Thus, we pulled predictors within these groupings. Other factors that have been shown to influence voting behaviors, like health care experiences, media influences, are difficult to estimate at an individual level. Thus, these are much more difficult to estimate at a county level. Due to the complexities in estimating these variables and limited data access, we do not include these variables in our analysis. 
 
 ### Merge elections & predictor dataframes
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 predictors2022 <- predictors2022 |>
   mutate(county_fips = geoid) |>
@@ -398,9 +402,145 @@ test <- testing(modeling_sample)
 
 ## Exploratory analysis
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
+
+library(ggplot2)
+library(scales)
+
+theme_set(theme_minimal())
+
+elections2016 |>
+  mutate(winner = ifelse(diff < 0, "dem", "rep")) |> 
+  ggplot(aes(x = diff, fill = winner)) +
+  geom_histogram(binwidth = 5000, color = "black") +
+  scale_x_continuous(labels = scales::number_format(scale = 1), limits = c(-200000, 200000)) +
+  scale_fill_manual(values = c("dem" = "blue", "rep" = "red")) +
+  labs(title = "Count of Party Wins by County in 2016")
+
+elections2020 |>
+  mutate(winner = ifelse(diff < 0, "dem", "rep")) |> 
+  ggplot(aes(x = diff, fill = winner)) +
+  geom_histogram(binwidth = 5000, color = "black") +
+  scale_x_continuous(labels = scales::number_format(scale = 1), limits = c(-200000, 200000)) +
+  scale_fill_manual(values = c("dem" = "blue", "rep" = "red")) +
+  labs(title = "Count of Party Wins by County in 2020")
+
+
+elections2024 |>
+  mutate(winner = ifelse(diff < 0, "dem", "rep")) |> 
+  ggplot(aes(x = diff, fill = winner)) +
+  geom_histogram(binwidth = 5000, color = "black") +
+  scale_x_continuous(labels = scales::number_format(scale = 1), limits = c(-200000, 200000)) +
+  scale_fill_manual(values = c("dem" = "blue", "rep" = "red")) +
+  labs(title = "Count of Party Wins by County in 2024")
 
 ```
+These plots show us that republicans consistenly have won more counties in the 2016, 2020, and 2024 presidential elections. This means that not all counties are created equal, since we know that a republican candidate did not win in 2020. That is, a democrat can still win even if they did not win more counties than the republican candidate. This plot demonstrates why we decided not to predict the presidential winner by number of counties. Instead, we decided our outcome to be the winner for each county, since the number of county wins would be a poor predictor of who wins a presidential election. 
+
+```{r, warning=FALSE, message=FALSE}
+
+#2020
+
+finaldata2020 |>
+  select(state_name, prop_less_than_hs, prop_hs_grad, prop_some_college_associates, prop_bachelors_higher) |>
+  mutate(region = case_when(
+    state_name %in% c("Connecticut", "Maine", "Massachusetts", "New Hampshire", "Rhode Island", 
+                      "Vermont", "New Jersey", "New York", "Pennsylvania") ~ "Northeast", 
+    state_name %in% c("Indiana", "Illinois", "Michigan", "Ohio", "Wisconsin", "Iowa", "Nebraska", 
+                      "Kansas", "North Dakota", "Minnesota", "South Dakota", "Missouri") ~ "Midwest", 
+    state_name %in% c("Delaware", "District of Columbia", "Florida", "Georgia", "Maryland", "North Carolina", 
+                      "South Carolina", "Virginia", "West Virginia", "Alabama", "Kentucky", "Mississippi", 
+                      "Tennessee", "Arkansas", "Louisiana", "Oklahoma", "Texas") ~ "South",  
+    state_name %in% c("Alaska", "California", "Hawaii", "Oregon", "Washington", "Arizona", "Colorado", "Idaho", "New Mexico", "Montana", "Utah", "Nevada", "Wyoming") ~ "West")) |>
+  group_by(region) |> 
+  pivot_longer(cols = c(prop_less_than_hs, prop_hs_grad, prop_some_college_associates, prop_bachelors_higher),
+               names_to = "education_level", values_to = "proportion") |>
+  mutate(proportion_two = proportion / sum(proportion) * 100) |>
+ggplot(aes(x = region, y = proportion_two, fill = education_level)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Education Distribution by Region in 2020", y = "Proportion (%)", x = "Region") +
+  scale_y_continuous(labels = scales::percent) +  
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(axis.text.y = element_blank(),
+        axis.title.y = element_blank())
+
+  
+```
+This graph shows that the northeast region is slightly more educated, with more of the popualtion having a higher amount of people with a bachelors degree. We included education as a predictor because different counties from different states may be more educated. This could change voting patterns. Education level could be a helpful predictor in presidential elections.  
+
+```{r, warning=FALSE, message=FALSE}
+
+# Choosing Population Variables
+finaldata2020 |>
+  ggplot() +
+  geom_point(aes(x = total_population,
+                 y = land_area),
+             alpha = 0.1,
+             color = "pink") + 
+  geom_smooth(mapping = aes(x = total_population,
+                            y = land_area),
+              method = "lm",
+              se = FALSE,
+              color = "black",
+              linetype = "dashed") +
+  labs(title = "Land Area and Total Population")
+  
+```
+As population increases, the land area increases, on average. This graph does show though, that certain areas have a higher population and lower land mass. These are urban areas. This graph demonstrates the reason why we chose to use population density as a predictor rather than total population or land area alone. Those measurments alone do not precisely capture all facets of the living situation certain counties are in.
+
+```{r, warning=FALSE, message=FALSE}
+
+# Choosing Economic Variables
+finaldata2020 |>
+  ggplot() +
+  geom_point(aes(x = unemployment_rate,
+                 y = median_income,
+                 color = poverty_rate > 0.2),
+             alpha = 0.1) + 
+  geom_smooth(mapping = aes(x = unemployment_rate,
+                            y = median_income),
+              method = "lm",
+              se = FALSE,
+              color = "black",
+              linetype = "dashed") +
+  labs(title = "Unemployment Rate and Median income") +
+  scale_color_manual(values = c("TRUE" = "red", "FALSE" = "green")) 
+
+```
+This graph shows that as unemployment rate increases, median income decreases. This is as expected. This graph also shows, however, that some counties have higher incomes and a still some citizens unemployed. Thus, we decided to include both in our model to better represent the level of economic disadvantage of a community. This graph also shows that counties with a high poverty rate, which we defined as 20% (based on the USDA, Economic Research Service’s (ERS) Poverty Area Measures), may also have a lower unemployment rate. Additionally, some counties that have a high poverty rate actually have a median income that falls above the summary line, meaning they have a relatively higher median income. The fact that these three measures of economic standing alone do not perfectly predict where counties may fall in the other economic categories demonstrates why we include all three measures of economic standing. By including all these measures, we capture the true economic situation in these counties. Hopefully, including all three will improve our models. 
+
+```{r, warning=FALSE, message=FALSE}
+
+# Choosing inequality estimators
+finaldata2020 |>
+  mutate(region = case_when(
+    state_name %in% c("Connecticut", "Maine", "Massachusetts", "New Hampshire", "Rhode Island", 
+                      "Vermont", "New Jersey", "New York", "Pennsylvania") ~ "Northeast", 
+    state_name %in% c("Indiana", "Illinois", "Michigan", "Ohio", "Wisconsin", "Iowa", "Nebraska", 
+                      "Kansas", "North Dakota", "Minnesota", "South Dakota", "Missouri") ~ "Midwest", 
+    state_name %in% c("Delaware", "District of Columbia", "Florida", "Georgia", "Maryland", "North Carolina", 
+                      "South Carolina", "Virginia", "West Virginia", "Alabama", "Kentucky", "Mississippi", 
+                      "Tennessee", "Arkansas", "Louisiana", "Oklahoma", "Texas") ~ "South",  
+    state_name %in% c("Alaska", "California", "Hawaii", "Oregon", "Washington", "Arizona", "Colorado", "Idaho", "New Mexico", "Montana", "Utah", "Nevada", "Wyoming") ~ "West")) |>
+  group_by(region) |> 
+  ggplot() +
+  geom_point(aes(x = poverty_rate,
+                 y = gini),
+             alpha = 0.1,
+             color = "pink") + 
+  geom_smooth(mapping = aes(x = poverty_rate,
+                            y = gini,
+                            group = region,
+                            color = region),
+              method = "lm",
+              se = FALSE,
+              linetype = "dashed")
+  
+  
+```
+This graph shows that for all regions, poverty rate increasing is associated with increases in the gini index. This makes sense, that more people living below the poverty line is associated with an increase in the income inequality of a county. This is important to note, that these two variables may be more correlated. When we are making our model, we may want to make sure highly correlated variables are not included at the same time.
+
+NEED TO JUSTIFY SPECIFIC RACE VARIABLES, AGE, FOREIGN BORN, UNDOCUMENTED, MEDIAN HOUSING COST
 
 ## V-fold cross-validation
 
@@ -414,7 +554,8 @@ train_folds <- vfold_cv(data = train, v = 10)
 
 ## Create a recipe
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
+
 recipe <-
   recipe(diff_current ~ diff_previous + prop_less_than_hs + prop_bachelors_higher + prop_18_to_24 + prop_65_years_older + prop_white + prop_black + prop_hispanic + poverty_rate + unemployment_rate + male_ratio_per_100_females + median_age + median_income + gini + median_housing_costs + prop_foreign_born_citizen + prop_undocumented + population_density,
          data = train) |>
@@ -433,13 +574,14 @@ step_corr(all_predictors())
 
 step_log(median_income, median_housing_costs)
 
-step_mutate(squared_median_age = median_age^2)
+step_mutate(squared_median_age = median_age\^2)
 
-step_interact(terms =  ~ prop_black*gini): we expect that the relationship between income inequality and voting outcomes (margins) changes based on the proportion of a county that is black
+step_interact(terms = \~ prop_black\*gini): we expect that the relationship between income inequality and voting outcomes (margins) changes based on the proportion of a county that is black
 
 ## LASSO
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
+
 lasso_spec <- linear_reg(penalty = 0.1, mixture = 1) |>
     set_mode(mode = "regression") |>
     set_engine(engine = "glmnet")
@@ -459,7 +601,8 @@ lasso_resamples |>
 
 ## Decision Tree
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
+
 set.seed(20201020)
 
 # creating a recipe
@@ -540,7 +683,7 @@ finalmodel_decision |>
 
 ## KNN
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 # check to see if there are any na values
 
@@ -610,7 +753,6 @@ final_fit_knn |>
   collect_metrics
   
 ```
-
 
 (Insert model here) has the lowest out of sample error rate
 
