@@ -18,6 +18,8 @@ library(tidycensus)
 library(tidymodels)
 library(tidyr)
 library(tidyverse)
+library(sf)
+library(tigris)
 
 ```
 
@@ -71,6 +73,16 @@ county_size <- read_csv("data/LND01.csv") |>
   mutate(geoid = sub("^0+", "", geoid))
 
 ```
+
+### Download county and state geospatial data
+
+```{r}
+counties_geospatial <-  counties(cb = TRUE) 
+
+state_geospatial <- states(cb = TRUE)
+
+```
+
 
 ### Download 2019 predictor data via API
 
@@ -244,7 +256,7 @@ dc_data <- elections2024 |>
   mutate(county_fips = as.character(county_fips))
 
 elections2024 <- elections2024 |> 
-  filter(!county_fips %in% c(11001, 11002, 11003, 11004, 11005, 11006, 11007, 11008)) |> 
+  filter(!county_fips %in% c(11001, 11002, 11003, 11004, 11005, 11006, 11007, 11008)) |> # data inputted manually from census burea information
   bind_rows(dc_data)
 
 # rest of merge
@@ -678,6 +690,10 @@ finalmodel_decision |>
 finalmodel_decision |> 
   group_by(predicted_winner) |> 
   summarize(sum_electoral_votes = sum(Electoral_College_Votes)) # predicted winner was democrat with 274 electoral votes
+
+# constructing electoral map by county
+
+
   
 ```
 
