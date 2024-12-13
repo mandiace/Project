@@ -238,6 +238,11 @@ finaldata2020 |>
   filter(if_any(everything(), is.na)) ## confirmed no missing data
 
 ```
+```{r}
+## exploring 0 for predictors
+
+
+```
 
 ## 2024/2020 data
 
@@ -452,6 +457,92 @@ finaldata2024 |>
 
 ```
 
+
+```{r}
+## missing data 
+
+
+### education data 
+
+highschool <- finaldata2020 |>
+  filter(prop_less_than_hs == 0) 
+
+highschool_unique <- unique(highschool[, c("state_name", "county_name")])
+
+# Counties missing high school data
+print(highschool_unique)
+
+## Checking for missing grad highs school data
+
+highschool_g <- finaldata2020 |>
+  filter(prop_less_than_hs == 0) 
+
+highschool_unique_g <- unique(highschool_g[, c("state_name", "county_name")])
+print(highschool_unique_g)
+
+#### consistent across education groups 
+
+### land area
+
+finaldata2020 |>
+  summarize(min_land_area = min(land_area)) 
+
+land_missing <- finaldata2020 |>
+  filter(land_area == 0)
+
+land_missing_unique <- unique(land_missing[, c("state_name", "county_name")])
+print(land_missing_unique)
+
+### population 
+
+finaldata2020 |>
+  summarize(min_population = min(total_population)) # total population all good
+
+### age 
+
+finaldata2020 |>
+  summarize(min_age_18 = min(prop_18_to_24))
+
+finaldata2020 |>
+  summarize(min_pro_65 = min(prop_65_years_older)) # age looks fine
+
+
+###  race data, need to check but could be correct
+finaldata2020 |>
+  summarize(min_prop_white = min(prop_white))
+
+finaldata2020 |>
+  summarize(min_prop_black = min(prop_black)) ## this is 0. Is this possible?? 
+
+black_zero <- finaldata2020 |>
+  filter(prop_black == 0)
+
+black_zero_unique <- unique(black_zero[, c("state_name", "county_name")])
+print(black_zero_unique)
+
+finaldata2020 |>
+  summarize(min_prop_hisp = min(prop_hispanic)) 
+
+hispanic_zero <- finaldata2020 |>
+  filter(prop_hispanic == 0)
+
+hispanic_zero_unqiue <- unique(hispanic_zero[, c("state_name", "county_name")])
+print(hispanic_zero_unqiue)
+
+### unemployment 
+finaldata2020 |>
+  summarize(min_unemp = min(unemployment_rate)) # has 0
+
+### male 
+finaldata2020 |>
+  summarise(minmal = min(male_ratio_per_100_females)) # all good
+
+### median
+
+
+
+```
+
 # Set up testing environment using 2020 data
 
 ## Initial split
@@ -494,11 +585,77 @@ finaldata2020 |>
 Republicans won more counties than Democrats in the 2020 presidential election, but the Democratic tail of the distribution is much longer, indicating that large margins happened more often in counties that Democrats won than in counties that Republicans won. We know that a Republican candidate did not win in 2020. This implies that while the Republican candidate won more counties overall, Democrats disproportionately win counties with large populations. This is demonstrated in our table. In 2020, the Republican candidate won the significant majority of all counties with a below-90th percentile population size. However, the Democratic candidate won about 68% the largest 10% of counties in the nation.
 
 This plot also demonstrates why we decided not to model a binary outcome variable capturing whether a Republican won in each county, as such a model will be biased towards Republicans and is not useful in informing national-level winners. Instead, we chose to use margins as our outcome variable, which captures the same information as a binary winner variable while also potentially proving more useful for national-level predictions.
+```{r}
+# Exploring spread of values in margins variable in 2020 election
+
+finaldata2020 |>
+  summarize(max_diff = max(diff_current),
+            min_diff = min(diff_current),
+            mean_diff = mean(diff_current),
+            sd_diff = sd(diff_current))
+
+
+```
+The maximum difference indicates a republican winner and the minimum difference is negative. This makes sense. Looking at the maximum and minimum values, the minimum value has a higher magnitude than the maximum value. This means that there is at least one occurence where democrats win by an extremely high margin, compared to the how much republicans win. 
+
+```{r}
+# Exploring these margin outliers for the democrats in 2020 presidential election
+finaldata2020 |>
+  summarize(outlier_dem = sum(diff_current < -119005))
+
+finaldata2020 |>
+  filter(diff_current < -119005) |>
+  summarize(min_dem_outlier = min(diff_current),
+            max_dem_outlier = max(diff_current), 
+            mean_dem_outlier = mean(diff_current), 
+            sd_dem_outleir = sd(diff_current))
+```
+This shows that we have 53 counties that are above the highest margin for a republican win. Looking at the standard deviation presented by these values, it shows that these values vary greatly in their magnitude. This could mean that we should be concerned about outliers for when a democrat wins in particular, as they won by higher margins in the 2020 election. 
+
+```{r}
+# Is outlier situation the same for the 2016 election
+
+
+finaldata2020 |>
+  summarize(max_diff_past = max(diff_previous),
+            min_diff_past = min(diff_previous),
+            mean_diff_past = mean(diff_previous),
+            sd_diff_past = sd(diff_previous))
+```
+For the 2016 election, this may be the case as well, the magnitude for counties where a democrat won is much higher than the republican win. 
+
+```{r}
+# Exploring these margin outliers for the democrats in 2020 presidential election
+
+finaldata2020 |>
+  summarize(outlier_dem = sum(diff_previous < -104444))
+
+finaldata2020 |>
+  filter(diff_previous < -104444) |>
+  summarize(min_dem_outlier = min(diff_previous),
+            max_dem_outlier = max(diff_previous), 
+            mean_dem_outlier = mean(diff_previous), 
+            sd_dem_outleir = sd(diff_previous))
+
+```
+
+In the 2016 election, 45 values may be strong outliers in the analysis. This is relatively close to the number of outliers in the 2020 presidential election. Similarly, the standard deviation is relatively high as well. This may mean that the values are not close together, varying greatly. However, the mean is decently close to the minimum value, telling us that the outlier with the largest magnitude may be pulling these values upwards, and the rest of the outliers are closer to the -104746 value. Since the number of outliers is decently similar between the 2016 and 2020 presidential election (53 and 45), this may not be of strong concern. These outliers may also be of less concern since they make up such a small portion of the data set. The values we would be concerned about make up about 1.7%. 
+
+```{r}
+#What counties make up these outliers in both the 2016 and 2020 elections? 
+
+outliers <- finaldata2020 |>
+  filter(diff_current < -119005 | diff_previous < -104444)
+
+print(table(outliers$state_name))
+
+```
+As expected, California repeats the most in the outliers for democrat wins. Interestingly, some swing states show up in this. Since so few show up in this analysis, and many in places we would expect a democrat win, this may not be of great concern. However, it is interesting to note. Possibly, state could be interesting predictor for a place like California. 
 
 
 ```{r, warning=FALSE, message=FALSE}
+#Education distribution by County Winner 
 
-#2020
 
 finaldata2020 |>
   select(state_name, prop_less_than_hs, prop_hs_grad, prop_some_college_associates, prop_bachelors_higher, diff_current) |>
@@ -514,9 +671,65 @@ ggplot(aes(x = winner, y = proportion_two, fill = education_level)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   theme(axis.text.y = element_blank(),
         axis.title.y = element_blank())
+
   
 ```
-This graph suggests that counties who voted Democratic in 2020 had a higher number of residents with some college education. We capture educational attainment in the model using a number of predictors, as the leftward political shift of college-educated individuals in recent decades has made educational patterns a potentially useful indicator for voting outcomes.
+This graph suggests that counties who voted Democratic in 2020 had a higher number of residents with some college education. We capture educational attainment in the model using a number of predictors, as the leftward political shift of college-educated individuals in recent decades has made educational patterns a potentially useful indicator for voting outcomes. Since education spread, at large, is s
+
+```{r}
+# Is there a relationship between education levels and who wins in the presidential election? 
+
+finaldata2020 |>
+  filter(diff_current > -100000) |> # filtering out the two outliers to better see data spread
+  ggplot() +
+  geom_point(aes(x = prop_less_than_hs, y = diff_current)) +
+  geom_smooth(mapping = aes(x = prop_less_than_hs,
+                            y = diff_current),
+              method = "lm",
+              se = FALSE,
+              color = "grey",
+              linetype = "dashed") + 
+  labs(title = "Associaion between less than high school and margin win")
+
+finaldata2020 |>
+  filter(diff_current > -100000) |> # filtering out the two outliers to better see data spread
+  ggplot() +
+  geom_point(aes(x = prop_hs_grad, y = diff_current)) +
+  geom_smooth(mapping = aes(x = prop_hs_grad,
+                            y = diff_current),
+              method = "lm",
+              se = FALSE,
+              color = "grey",
+              linetype = "dashed") + 
+  labs(title = "Associaion between high school grad and margin win")
+
+finaldata2020 |>
+  filter(diff_current > -100000) |> # filtering out the two outliers to better see data spread
+  ggplot() +
+  geom_point(aes(x = prop_some_college_associates, y = diff_current)) +
+  geom_smooth(mapping = aes(x = prop_some_college_associates,
+                            y = diff_current),
+              method = "lm",
+              se = FALSE,
+              color = "grey",
+              linetype = "dashed") + 
+  labs(title = "Associaion between some college or associates and margin win")
+
+finaldata2020 |>
+  filter(diff_current > -100000) |> # filtering out the two outliers to better see data spread
+  ggplot() +
+  geom_point(aes(x = prop_bachelors_higher, y = diff_current)) +
+  geom_smooth(mapping = aes(x = prop_bachelors_higher,
+                            y = diff_current),
+              method = "lm",
+              se = FALSE,
+              color = "grey",
+              linetype = "dashed") + 
+  labs(title = "Associaion between Bachelors or higher and margin win")
+
+
+```
+The proportion of people with bachelors degree or higher and its association with the margin winner is the strongest out of all education varibles, since it is the steepest line. Additionally, this association is most interesting, as it is also negative. Some college associates is also negative, although not as steep. Less than high school and margins winner is the flattest, telling us there is little relationship between these two, although it is positively associated. High school grad and margin have a moderately psotive relationship. This could mean that the two key variables for education in this model may be bachelors or higher and high school grad. 
 
 ```{r, warning=FALSE, message=FALSE}
 
@@ -534,9 +747,20 @@ finaldata2020 |>
               color = "black",
               linetype = "dashed") +
   labs(title = "Land Area and Total Population")
+
+# NEED TO FIX LAND ISSUE
+finaldata2020 |>
+  ggplot() +
+  geom_point(aes(x = population_density, y = diff_current), 
+           alpha = 0.6, 
+           color = "pink") + 
+  labs(
+    title = "Population Density and Total Population vs. Land Area",
+    x = "Population Density",
+    y = "Count / Land Area") 
   
 ```
-As population increases, the land area increases, on average. This graph does show though, that certain areas have a higher population and lower land mass. These are urban areas. This graph demonstrates the reason why we chose to use population density as a predictor rather than total population or land area alone. Those measurments alone do not precisely capture all facets of the living situation certain counties are in.
+As population increases, the land area increases, on average. This graph does show though, that certain areas have a higher population and lower land mass. These are urban areas. This graph demonstrates the reason why we chose to use population density as a predictor rather than total population or land area alone. Those measurements alone do not precisely capture all facets of the living situation certain counties are in. 
 
 ```{r, warning=FALSE, message=FALSE}
 
@@ -548,7 +772,7 @@ finaldata2020 |>
                  color = poverty_rate > 0.2),
              alpha = 0.2) + 
   geom_smooth(mapping = aes(x = unemployment_rate,
-                            y = median_income),
+                            y = diff_current),
               method = "lm",
               se = FALSE,
               color = "black",
@@ -558,7 +782,7 @@ finaldata2020 |>
   scale_color_manual(values = c("TRUE" = "red", "FALSE" = "green")) 
 
 ```
-This graph shows that as unemployment rate in a county increases, the Democratic candidate is more likely to win (Democrat win = negative margin). Counties with higher unemployment rates are also more likely to fall below the poverty line, which we defined as 20% (based on the USDA, Economic Research Service’s (ERS) Poverty Area Measures).  
+This graph shows that  lower unemployment rates are associated with republican wins (Republican win = positive margin). Interestingly, higher unemployment rates are not necessarily associated with negitive margins, or democratic party wins. The summary line shows that while the association between the party win and unemployment rates is negative (an increase in unemployment rate is associated with a decrease in margins), it is barely negative. This means the association between who wins a presidential election and unemployment rate might not be helpful. As expected though, counties with higher unemployment rates are more likely to fall below the poverty line, which we defined as 20% (based on the USDA, Economic Research Service’s (ERS) Poverty Area Measures).  
 
 ```{r, warning=FALSE, message=FALSE}
 
@@ -567,20 +791,37 @@ finaldata2020 |>
   mutate(winner = ifelse(diff_current < 0, "Dem", "Rep")) |> 
   group_by(winner) |> 
   ggplot() +
-  geom_point(aes(x = poverty_rate,
-                 y = gini),
-             alpha = 0.2,
-             color = "pink") + 
-  geom_smooth(mapping = aes(x = poverty_rate,
-                            y = gini,
-                            group = winner,
+  geom_point(aes(x = poverty_rate, y = gini, color = winner), 
+             alpha = 0.2) + 
+  geom_smooth(mapping = aes(x = poverty_rate, 
+                            y = gini, 
+                            group = winner, 
                             color = winner),
-              method = "lm",
-              se = FALSE,
-              linetype = "dashed")
+              method = "lm", 
+              se = FALSE, 
+              linetype = "dashed") + 
+  scale_color_manual(values = c("Dem" = "blue", "Rep" = "red")) +
+  labs(title = "Poverty Rate vs. Gini Index by Winner",
+       x = "Poverty Rate",
+       y = "Gini Index")
+
+
   
 ```
-This graph shows that for all regions, poverty rate increasing is associated with increases in the gini index, a measure for income inequality. This makes sense, that more people living below the poverty line is associated with an increase in the income inequality of a county. This is important to note, that these two variables may be more correlated. When we are making our model, we may want to make sure highly correlated variables are not included at the same time. 
+This graph shows that an increase in poverty rate is associated with an increase in the gini index, or income inequality, regardless of what party won in the presidential election. What is interesting is that for counties where a republican candidate won, the summary line starts at a lower point in the graph and ends higher. That is, the republican line is steeper than the democratic line. This could mean that for republican-winning counties, the relationship between poverty rate and gini index is more negatively associated then democrat winning counties. This graph looks like democrat winning counties fall higher on the gini index and pverty rate. Below, we dive into this relationship further. 
+
+
+```{r}
+# Exploring gini index and poverty rate relationship with winning party
+
+finaldata2020 |>
+  ggplot() +
+  geom_point(aes(x = poverty_rate, y = diff_current)) + 
+  geom_smooth(mapping = aes(x = poverty_rate, y = diff_current))
+
+
+
+```
 
 NEED TO JUSTIFY SPECIFIC RACE VARIABLES, AGE, FOREIGN BORN, UNDOCUMENTED, MEDIAN HOUSING COST
 
