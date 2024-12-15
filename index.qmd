@@ -23,6 +23,7 @@ library(tidymodels)
 library(tidyr)
 library(tidyverse)
 library(tigris)
+library(vip)
 
 ```
 
@@ -77,13 +78,14 @@ county_size <- read_csv("data/LND01.csv") |>
          LND010190D) |> 
   rename(geoid = STCOU,
          land_area = LND010190D) |> 
-  mutate(geoid = sub("^0+", "", geoid))
+  mutate(geoid = sub("^0+", "", geoid),
+         land_area = if_else(geoid == 8014, 32.97, land_area)) # manually inputting land area value for Broomfield County, Colorado, since it was incorrectly listed as zero. 
 
 # manually input data for Connecticut county-equivalents, as Census switched from using counties to Connecticut's Councils of Government divisions in 2022.
 
 ct_county_eq_size <- data.frame(
   geoid = c(9110, 9120, 9130, 9140, 9150, 9160, 9170, 9180, 9190),
-  land_area = c(1027.3, 140.2, 424.1, 412.8, 553.9, 786.6, 367.2, 598.1, 532.1)
+  land_area = c(1027.3, 140.2, 424.1, 412.8, 553.9, 786.6, 367.2, 598.1, 532.1) # manually inputting rows for Connnecticut post-2022 resturcturing of counties and county-equivalent entities
 ) |> 
   mutate(geoid = as.character(geoid))
 
@@ -96,7 +98,10 @@ county_size <- county_size |>
 
 ```{r}
 
-counties_geospatial <-  counties(cb = TRUE) 
+counties_geospatial <-  counties(cb = TRUE) |> 
+  mutate(GEOID = sub("^0", "", GEOID)) |> 
+  rename(county_fips = GEOID) |> 
+  select(county_fips, geometry)
 
 state_geospatial <- states(cb = TRUE)
 
@@ -219,6 +224,45 @@ finaldata2020 <- left_join(x = elections2020_2016,
                       y = predictors2019,
                       by = "county_fips")
 
+finaldata2020 <- finaldata2020 |> # reordering columns
+  select(state_name,
+         county_name,
+         county_fips,
+         total_votes_current,
+         votes_gop_current,
+         votes_dem_current,
+         diff_current,
+         per_gop_current,
+         per_dem_current,
+         per_point_diff_current,
+         total_votes_previous,
+         votes_gop_previous,
+         votes_dem_previous,
+         diff_previous,
+         per_point_diff_previous,
+         swing,
+         land_area,
+         total_population,
+         population_density,
+         prop_less_than_hs,
+         prop_hs_grad,
+         prop_some_college_associates,
+         prop_bachelors_higher,
+         prop_18_to_24,
+         prop_65_years_older,
+         prop_white,
+         prop_black,
+         prop_hispanic,
+         prop_foreign_born_citizen,
+         prop_undocumented,
+         poverty_rate,
+         unemployment_rate,
+         gini,
+         median_age,
+         median_income,
+         median_housing_costs,
+         male_ratio_per_100_females)
+
 ```
 
 ### Create predictor: swing county
@@ -277,15 +321,8 @@ land_missing <- finaldata2020 |>
   filter(land_area == 0)
 
 land_missing_unique <- unique(land_missing[, c("state_name", "county_name")])
-print(land_missing_unique)
-
-finaldata2020 <- finaldata2020 |>
-  filter(county_name != "Broomfield County") ## removing county with 0 land area
-
-### Kevin can u pls check this ###
-
+print(land_missing_unique) # no more counties with missing land area. 
 ```
-
 
 ## 2024/2020 data
 
@@ -331,7 +368,7 @@ dc_data <- elections2024 |>
 ```{r, warning=FALSE, message=FALSE}
 
 elections2024 <- elections2024 |> 
-  filter(!county_fips %in% c(11001, 11002, 11003, 11004, 11005, 11006, 11007, 11008)) |> # data inputted manually from census burea information
+  filter(!county_fips %in% c(11001, 11002, 11003, 11004, 11005, 11006, 11007, 11008)) |> # dc data inputted manually from census burea information
   bind_rows(dc_data)
 
 # rest of merge
@@ -514,8 +551,46 @@ finaldata2024 <- finaldata2024 |>
 finaldata2024 |>
   filter(if_any(everything(), is.na)) ## confirmed no missing data outside of Connecticut 2020 voting data
 
-```
+finaldata2024 <- finaldata2024 |> # reordering columns
+  select(state_name,
+         county_name,
+         county_fips,
+         total_votes_current,
+         votes_gop_current,
+         votes_dem_current,
+         diff_current,
+         per_gop_current,
+         per_dem_current,
+         per_point_diff_current,
+         total_votes_previous,
+         votes_gop_previous,
+         votes_dem_previous,
+         diff_previous,
+         per_point_diff_previous,
+         swing,
+         land_area,
+         total_population,
+         population_density,
+         prop_less_than_hs,
+         prop_hs_grad,
+         prop_some_college_associates,
+         prop_bachelors_higher,
+         prop_18_to_24,
+         prop_65_years_older,
+         prop_white,
+         prop_black,
+         prop_hispanic,
+         prop_foreign_born_citizen,
+         prop_undocumented,
+         poverty_rate,
+         unemployment_rate,
+         gini,
+         median_age,
+         median_income,
+         median_housing_costs,
+         male_ratio_per_100_females)
 
+```
 
 # Set up testing environment using 2020 data
 
@@ -532,8 +607,74 @@ test <- testing(modeling_sample)
 
 ## Exploratory analysis
 
-```{r, warning=FALSE, message=FALSE}
+```{r}
+countymap_diff <- train |> 
+  left_join(counties_geospatial, by = "county_fips") |>
+  select(diff_current, geometry) |> 
+  filter(diff_current < 1000000) |> # removing democratic outliers
+  st_as_sf() |> 
+  ggplot() + 
+  geom_sf(aes(fill = diff_current)) + 
+  scale_fill_gradient(
+    low = "royalblue4",
+    high = "firebrick3"
+  )
 
+counties_geospatial |> 
+  left_join(train, by = "county_fips") |>
+  select(county_fips, diff_current, geometry) |>
+  ggplot() + 
+  geom_sf(aes(fill = diff_current)) + 
+  scale_fill_gradient(
+    low = "royalblue4",
+    high = "firebrick3"
+  )
+
+countymap_diff
+
+# us map of white proportions by county
+map_propwhite <- train |> 
+  left_join(counties_geospatial, by = "county_fips") |>
+  select(county_fips, prop_white, geometry) |> 
+  st_as_sf() |> 
+  ggplot() +
+  geom_sf(aes(fill = prop_white)) +
+  scale_fill_gradient(
+    low = "white",
+    high = "chartreuse3"
+  )
+
+# us map of black proportions by county
+map_propblack <- train |> 
+  left_join(counties_geospatial, by = "county_fips") |>
+  select(county_fips, prop_black, geometry) |> 
+  st_as_sf() |> 
+  ggplot() +
+  geom_sf(aes(fill = prop_black)) +
+  scale_fill_gradient(
+    low = "white",
+    high = "royalblue3"
+  )
+
+# us map of hispanic proportions by county
+map_prophispanic <- train |> 
+  left_join(counties_geospatial, by = "county_fips") |>
+  select(county_fips, prop_hispanic, geometry) |> 
+  st_as_sf() |> 
+  ggplot() +
+  geom_sf(aes(fill = prop_hispanic)) +
+  scale_fill_gradient(
+    low = "white",
+    high = "darkgoldenrod1"
+  )
+
+countymap_diff + map_propwhite + map_propblack + map_prophispanic
+  
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+options(sciepen = 999)
 theme_set(theme_minimal())
 
 train |>
@@ -542,7 +683,9 @@ train |>
   geom_histogram(binwidth = 5000, color = "black") +
   scale_x_continuous(labels = scales::number_format(scale = 1), limits = c(-200000, 200000)) +
   scale_fill_manual(values = c("dem" = "blue", "rep" = "red")) +
-  labs(title = "Count of Party Wins by County Margin in 2020")
+  labs(title = "Count of Party Wins by County Margin in 2020",
+       x = "Differential in Number of Votes",
+       y = "Count")
 
 train |>
   mutate(pop_size_decile = ntile(total_population, 10)) |>
@@ -564,12 +707,13 @@ This plot also demonstrates why we decided not to model a binary outcome variabl
 train |>
   mutate(winner = ifelse(diff_current < 0, "dem", "rep")) |> 
   group_by(winner) |>
-  summarize("Max margin" = max(diff_current),
-            "Min margin" = min(diff_current),
-            "Mean margin" = mean(diff_current),
+  summarize("Max margin" = abs(max(diff_current)),
+            "Min margin" = abs(min(diff_current)),
+            "Mean margin" = abs(mean(diff_current)),
             "SD margin"= sd(diff_current))
 
 ```
+
 The average Democrat-won county in 2020 has a much larger margin (46,018 votes) than the average Republican-won county (6,920 votes). This is unsurprising, as Democrats are more likely to win large, urban counties. The distribution of the margin for Democrat-won counties is also much wider.
 
 ```{r}
@@ -578,11 +722,12 @@ The average Democrat-won county in 2020 has a much larger margin (46,018 votes) 
 train |>
   mutate(winner = ifelse(diff_previous < 0, "dem", "rep")) |> 
   group_by(winner) |>
-  summarize("Max margin" = max(diff_previous),
-            "Min margin" = min(diff_previous),
-            "Mean margin" = mean(diff_previous),
+  summarize("Max margin" = abs(max(diff_previous)),
+            "Min margin" = abs(min(diff_previous)),
+            "Mean margin" = abs(mean(diff_previous)),
             "SD margin"= sd(diff_previous))
 ```
+
 These patterns holds for the 2016 election as well.
 
 ```{r}
@@ -593,9 +738,9 @@ train |>
 
 train |>
   filter(diff_previous < -104444) |>
-  summarize(min_dem_outlier = min(diff_previous),
-            max_dem_outlier = max(diff_previous), 
-            mean_dem_outlier = mean(diff_previous), 
+  summarize(min_dem_outlier = abs(min(diff_previous)),
+            max_dem_outlier = abs(max(diff_previous)), 
+            mean_dem_outlier = abs(mean(diff_previous)), 
             sd_dem_outleir = sd(diff_previous))
 
 ```
@@ -617,7 +762,6 @@ As expected, California repeats the most in the outliers for democrat wins. Inte
 ```{r, warning=FALSE, message=FALSE}
 #Education distribution by County Winner 
 
-
 train |>
   select(state_name, prop_less_than_hs, prop_hs_grad, prop_some_college_associates, prop_bachelors_higher, diff_current) |>
   mutate(winner = ifelse(diff_current < 0, "Dem", "Rep")) |> 
@@ -627,7 +771,15 @@ train |>
   mutate(proportion_two = proportion / sum(proportion) * 100) |>
 ggplot(aes(x = winner, y = proportion_two, fill = education_level)) +
   geom_bar(stat = "identity") +
-  labs(title = "Education Distribution by County Winner in 2020", y = "Proportion (%)", x = "Winner") +
+  labs(title = "Education Distribution by County Winner in 2020", y = "Proportion (%)", x = "Winner", fill = "Level of Education") +
+  scale_fill_manual(values = c("prop_less_than_hs" = "#1f77b4",
+                               "prop_hs_grad" = "#ff7f0e",
+                               "prop_some_college_associates" = "#2ca02c",
+                               "prop_bachelors_higher" = "#d62728"),
+                    labels = c("prop_less_than_hs" = "Less Than High School",
+                               "prop_hs_grad" = "High School Graduate",
+                               "prop_some_college_associates" = "Some College or Associates Degree",
+                               "prop_bachelors_higher" = "Bachelor's or Higher")) + 
   scale_y_continuous(labels = scales::percent) +  
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   theme(axis.text.y = element_blank(),
@@ -635,7 +787,7 @@ ggplot(aes(x = winner, y = proportion_two, fill = education_level)) +
 
 ```
 
-This graph suggests that counties who voted Democratic in 2020 had a higher number of residents with some college education. We capture educational attainment in the model using a number of predictors, as the leftward political shift of college-educated individuals in recent decades has made educational patterns a potentially useful indicator for voting outcomes. 
+This graph suggests that counties who voted Democratic in 2020 had a higher number of residents with some college education. We capture educational attainment in the model using a number of predictors, as the leftward political shift of college-educated individuals in recent decades has made educational patterns a potentially useful indicator for voting outcomes.
 
 ```{r}
 # Is there a relationship between education levels and who wins in the presidential election? 
@@ -643,50 +795,62 @@ This graph suggests that counties who voted Democratic in 2020 had a higher numb
 train |>
   filter(diff_current > -100000) |> # filtering out the two outliers to better see data spread
   ggplot() +
-  geom_point(aes(x = prop_less_than_hs, y = diff_current)) +
+  geom_point(aes(x = prop_less_than_hs, y = diff_current),
+             alpha = 0.3) +
   geom_smooth(mapping = aes(x = prop_less_than_hs,
                             y = diff_current),
               method = "lm",
               se = FALSE,
               color = "grey",
               linetype = "dashed") + 
-  labs(title = "Association between proportion of county with less than high school educ. and margin")
+  labs(title = "Association between proportion of county with less than high school educ. and margin",
+       x = "Proportion less than high school",
+       y = "Differential in number of votes")
 
 train |>
   filter(diff_current > -100000) |> # filtering out the two outliers to better see data spread
   ggplot() +
-  geom_point(aes(x = prop_hs_grad, y = diff_current)) +
+  geom_point(aes(x = prop_hs_grad, y = diff_current),
+             alpha = 0.3) +
   geom_smooth(mapping = aes(x = prop_hs_grad,
                             y = diff_current),
               method = "lm",
               se = FALSE,
               color = "grey",
               linetype = "dashed") + 
-  labs(title = "Association between proportion of county with high school educ. and margin")
+  labs(title = "Association between proportion of county with high school educ. and margin",
+       x = "Proportion of high school graduates",
+       y = "Differential in number of votes")
 
 train |>
   filter(diff_current > -100000) |> # filtering out the two outliers to better see data spread
   ggplot() +
-  geom_point(aes(x = prop_some_college_associates, y = diff_current)) +
+  geom_point(aes(x = prop_some_college_associates, y = diff_current),
+             alpha = 0.3) +
   geom_smooth(mapping = aes(x = prop_some_college_associates,
                             y = diff_current),
               method = "lm",
               se = FALSE,
               color = "grey",
               linetype = "dashed") + 
-  labs(title = "Association between proportion of county with some college or associate's and margin")
+  labs(title = "Association between proportion of county with some college or associate's and margin",
+       x = "Proportion some college or associates degree",
+       y = "Differential in number of votes")
 
 train |>
   filter(diff_current > -100000) |> # filtering out the two outliers to better see data spread
   ggplot() +
-  geom_point(aes(x = prop_bachelors_higher, y = diff_current)) +
+  geom_point(aes(x = prop_bachelors_higher, y = diff_current),
+             alpha = 0.3) +
   geom_smooth(mapping = aes(x = prop_bachelors_higher,
                             y = diff_current),
               method = "lm",
               se = FALSE,
               color = "grey",
               linetype = "dashed") + 
-  labs(title = "Association between proportion of county with a bachelor's and margin")
+  labs(title = "Association between proportion of county with a bachelor's and margin",
+       x = "Proportion bachelor's degree or higher",
+       y = "Differential in the number of votes")
 
 ```
 
@@ -698,7 +862,7 @@ train |>
   ggplot() +
   geom_point(aes(x = population_density, 
                  y = diff_current), 
-           alpha = 0.6, 
+           alpha = 0.5, 
            color = "pink") + 
   geom_smooth(mapping = aes(x = population_density,
                             y = diff_current),
@@ -723,14 +887,16 @@ train |>
   geom_point(aes(x = unemployment_rate,
                  y = diff_current,
                  color = poverty_rate >= 0.2),
-             alpha = 0.2) + 
+             alpha = 0.3) + 
   geom_smooth(mapping = aes(x = unemployment_rate,
                             y = diff_current),
               method = "lm",
               se = FALSE,
               color = "black",
               linetype = "dashed") +
-  labs(title = "Unemployment Rate and Margin") +
+  labs(title = "Unemployment Rate and Margin",
+       x = "Unemployment rate",
+       y = "Differential in the number of votes") +
   scale_y_continuous(labels = scales::number_format(scale = 1), limits = c(-200000, 200000)) +
   scale_color_manual(values = c("TRUE" = "red", "FALSE" = "green")) 
 
@@ -744,24 +910,8 @@ This graph shows that lower unemployment rates are associated with republican wi
 unemployment_graph_1 <- train |>
   ggplot() +
   geom_point(aes(x = unemployment_rate,
-                 y = diff_current)) +
-  geom_smooth(mapping = aes(x = unemployment_rate, 
-                            y = diff_current),
-               method = "lm",
-              se = FALSE,
-              color = "grey",
-              linetype = "dashed") +
-  geom_vline(xintercept = 0.1, linetype = "dotted", color = "blue") +
-  annotate("text", x = 0.11, y = max(finaldata2020$diff_previous, na.rm = TRUE), 
-           label = "High Unemployment Rate, 10%", color = "blue", hjust = 0) +
-  labs(title = "Unemployment rate and margins in 2020 election")
-  
-
-unemployment_graph_2 <- train |>
-  filter(diff_current > -100000) |> # filtering out the two outliers to better see data spread
-  ggplot() +
-  geom_point(aes(x = unemployment_rate,
-                 y = diff_current)) +
+                 y = diff_current),
+             alpha = 0.3) +
   geom_smooth(mapping = aes(x = unemployment_rate, 
                             y = diff_current),
                method = "lm",
@@ -772,7 +922,29 @@ unemployment_graph_2 <- train |>
   annotate("text", x = 0.11, y = max(finaldata2020$diff_previous, na.rm = TRUE), 
            label = "High Unemployment Rate, 10%", color = "blue", hjust = 0) +
   labs(title = "Unemployment rate and margins in 2020 election",
-       subtitle = "Outliers removed")
+       x = "Unemployment rate",
+       y = "Differential in number of votes")
+  
+
+unemployment_graph_2 <- train |>
+  filter(diff_current > -100000) |> # filtering out the two outliers to better see data spread
+  ggplot() +
+  geom_point(aes(x = unemployment_rate,
+                 y = diff_current),
+             alpha = 0.3) +
+  geom_smooth(mapping = aes(x = unemployment_rate, 
+                            y = diff_current),
+               method = "lm",
+              se = FALSE,
+              color = "grey",
+              linetype = "dashed") +
+  geom_vline(xintercept = 0.1, linetype = "dotted", color = "blue") +
+  annotate("text", x = 0.11, y = max(finaldata2020$diff_previous, na.rm = TRUE), 
+           label = "High Unemployment Rate, 10%", color = "blue", hjust = 0) +
+  labs(title = "Unemployment rate and margins in 2020 election",
+       subtitle = "Outliers removed",
+       x = "Unemployment rate",
+       y = "")
 
 unemployment_graph_1 + unemployment_graph_2
 
@@ -788,7 +960,7 @@ train |>
   group_by(winner) |> 
   ggplot() +
   geom_point(aes(x = poverty_rate, y = gini, color = winner), 
-             alpha = 0.2) + 
+             alpha = 0.3) + 
   geom_smooth(mapping = aes(x = poverty_rate, 
                             y = gini, 
                             group = winner, 
@@ -811,19 +983,25 @@ This graph shows that an increase in poverty rate is associated with an increase
 train |>
   ggplot() +
   geom_point(aes(x = poverty_rate, 
-                 y = diff_current)) + 
+                 y = diff_current),
+             alpha  = 0.3) + 
   geom_smooth(mapping = aes(x = poverty_rate, 
                             y = diff_current)) +
-  labs(title = "Association between Poverty Rate and Margins Winner in 2020")
+  labs(title = "Association between Poverty Rate and Margins Winner in 2020", 
+       x = "Poverty rate",
+       y = "Differential in number of votes")
 
 
 finaldata2020 |>
   ggplot() +
   geom_point(aes(x = gini, 
-                 y = diff_current)) + 
+                 y = diff_current),
+             alpha = 0.3) + 
   geom_smooth(mapping = aes(x = poverty_rate, 
                             y = diff_current)) +
-  labs(title = "Association between Gini Index and Margins Winner in 2020")
+  labs(title = "Association between Gini Index and Margins Winner in 2020",
+       x = "Gini",
+       y = "Differential in number of votes")
 
 
 ```
@@ -841,7 +1019,7 @@ train |>
   select(state_name, prop_18_to_24, prop_65_years_older, diff_current) |>
   mutate(winner = ifelse(diff_current < 0, "Dem", "Rep")) |> 
   group_by(winner) |> 
-  mutate(dem_18 = mean() )
+  mutate(dem_18 = mean(
   pivot_longer(cols = c(prop_18_to_24, prop_18_to_24, prop_other),
                names_to = "education_level", values_to = "proportion") |>
 ggplot(aes(x = winner, y = proportion, fill = education_level)) +
@@ -884,7 +1062,140 @@ train |>
 
 As expected, the age group that seems to be different between counties where a democrat won versus a republican is the 18 to 24 category. It appears that younger people vote more for the democratic candidate than the republican candidate. As expected, the republican counties had a higher share of the older age population voting for them. This falls in line with our intuition and tells us its propbably important to include both in our model.
 
-NEED TO JUSTIFY SPECIFIC RACE VARIABLES, AGE, FOREIGN BORN, UNDOCUMENTED, MEDIAN HOUSING COST
+```{r}
+train |> 
+  select(county_fips, diff_current, prop_white, prop_black, prop_hispanic) |> 
+  filter(diff_current > -1000000) |> # removing democratic outliers
+  pivot_longer(cols = c(
+    "prop_white",
+    "prop_black",
+    "prop_hispanic"),
+    names_to = "ethnicity",
+    values_to = "proportion"
+  ) |> 
+  ggplot() + 
+  geom_point(mapping = aes(x = proportion, 
+                           y = diff_current,
+                           color = ethnicity),
+             alpha = 0.3) +
+  geom_smooth(mapping = aes(x = proportion,
+                            y = diff_current),
+              color = "darkgrey") + 
+  scale_x_continuous(breaks = c(0,1)) + 
+  facet_wrap(~ ethnicity) + 
+  labs(title = "Vote differentials by ethnic proportions",
+       x = "Proportion of ethnicity",
+       y = "Differential in number of votes",
+       color = "Ethnicity")
+
+train |> 
+  select(county_fips, diff_current, prop_white, prop_black, prop_hispanic) |> 
+  pivot_longer(cols = c(
+    "prop_white",
+    "prop_black",
+    "prop_hispanic"),
+    names_to = "ethnicity",
+    values_to = "proportion"
+  ) |> 
+  ggplot() + 
+  geom_smooth(mapping = aes(x = proportion,
+                            y = diff_current,
+                            color = ethnicity),
+              alpha = 0.2) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") + 
+  labs(title = "Vote differentials by ethnic proportions \nwith confidence intervals",
+       x = "Proportion of ethnicity",
+       y = "Differential in number of votes",
+       color = "Ethnicity")
+
+train |> 
+  summarize(proportion_white_over_0.75 = mean(prop_white > 0.75), # 0.77 of counties have a prop_white of over 0.75
+            proportion_white_over_0.8 = mean(prop_white > 0.8), # 0.706 of counties have a prop_white of over 0.8
+            proportion_white_over_0.85 = mean(prop_white > 0.85)) # 0.631 of counties have a prop_white of over 0.85
+```
+
+The graphs show an almost quadratic relationship between the three listed ethnicities and vote differentials. While the relationship between the proportion of black residents and vote differentials remains negative throughout the distribution, vote differentials dip into the positives with high hispanic and white proportional values. Considering the confidence intervals, a high proportion of white residents is likely to vote Republican and, given the fact that most counties are predominantly white -- with 77% of which having a white-proportion over three-quarters -- the relationship owes to the idea that most counties overwhelmingly vote for the Republican Party. Regardless of county trends, the graphs show a clear relationship between ethnic proportions and voting differentials.
+
+```{r}
+medianage_plot1 <- train |> 
+  select(diff_current, median_age) |> 
+  ggplot() + 
+  geom_point(mapping = aes(x = median_age, y = diff_current),
+             color = "indianred3",
+             alpha = 0.3) +
+  geom_smooth(mapping = aes(x = median_age, y = diff_current),
+              color = "lightsteelblue4") + 
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") + 
+  geom_vline(xintercept = 41.5, linetype = "dashed", color = "black") + 
+  labs(title = "Vote differentials by median age",
+       x = "Median age",
+       y = "Differential in number of votes")
+
+medianage_plot2 <- train |> 
+  select(diff_current, median_age) |>
+  filter(diff_current > -50594 & diff_current < 7081) |> 
+  ggplot() + 
+  geom_point(mapping = aes(x = median_age, y = diff_current),
+             color = "indianred3",
+             alpha = 0.3) +
+  geom_smooth(mapping = aes(x = median_age, y = diff_current),
+              color = "lightsteelblue4") + 
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") + 
+  geom_vline(xintercept = 41.5, linetype = "dashed", color = "black") + 
+  labs(title = "",
+       x = "Median age",
+       y = "")
+
+medianage_plot1 + medianage_plot2
+```
+
+Counties with a younger median age are more likely to have a differential in favor of the Democratic party, a trend in line with contemporary wisdom that younger Americans are usually more receptive to the Democratic party in elections. Counties with a median age equal to traditionally-defined middle-aged years tend to vote for the Republican party. Interestingly, as the median age enters elderly ages, the vote differential tends closer towards zero and even towards the Democratic party, perhaps indicating that the relationship between median age and vote differentials is according to a cubed polynomial: younger counties tend to be Democratic, middle aged counties Republican, and elderly counties still Republican although to a lesser degree.
+
+```{r}
+foreignborn_plot1 <- train |> 
+  select(diff_current, prop_foreign_born_citizen, prop_undocumented) |> 
+  mutate(prop_foreign_born = prop_foreign_born_citizen + prop_undocumented,
+         prop_undocumented_to_foreign = prop_undocumented / prop_foreign_born) |> 
+  ggplot() +
+  geom_point(mapping = aes(x = prop_foreign_born, y = diff_current, color = prop_undocumented_to_foreign),
+             alpha = 0.6) + 
+  scale_color_continuous(
+    low = "darkolivegreen1",
+    high = "black"
+  ) + 
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") + 
+  geom_vline(xintercept = 0.0753, linetype = "dashed", color = "black") + 
+  labs(title = "Vote Differentials by Proportion of Foreign-born \nand Undocumented Residents",
+       x = "Proportion Foreign Born",
+       y = "Differential in Number of Votes",
+       color = "") + 
+  guides(color = "none")
+
+foreignborn_plot2 <- train |> 
+  select(diff_current, prop_foreign_born_citizen, prop_undocumented) |> 
+  mutate(prop_foreign_born = prop_foreign_born_citizen + prop_undocumented,
+         prop_undocumented_to_foreign = prop_undocumented / prop_foreign_born) |> 
+  filter(diff_current > -1000000) |> 
+  ggplot() +
+  geom_point(mapping = aes(x = prop_foreign_born, y = diff_current, color = prop_undocumented_to_foreign),
+             alpha = 0.6) + 
+  scale_color_continuous(
+    low = "darkolivegreen1",
+    high = "black"
+  ) + 
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") + 
+  geom_vline(xintercept = 0.0753, linetype = "dashed", color = "black") + 
+  labs(title = "",
+       x = "",
+       y = "",
+       color = "Proportion of Undocumented \nStatus among Foreign \nBorn Individuals")
+  
+foreignborn_plot1 + foreignborn_plot2
+```
+
+Counties with a higher proportion of immigrants are more likely to have a differential in favor of the Democratic party, demonstrating a clear relationship between the proportion of immigrants and vote outcomes. Interestingly, as the proportion of undocumented increases, the vote differential tends towards zero, perhaps as the result in the increase in the proportion of non-voting residents. As noted, counties with a higher proportion of immigrants are more likely to vote in favor of the Democratic party -- however, if in those same counties a high proportion of those immigrants are undocumented, then a greater portion of Democratic-leaning residents are unable to actually legally vote, thus offsetting any potential Democratic gains in votes and skewing the differential towards zero. This presents an interesting and perhaps inverse relationship between counties and their immigrant and citizenship makeups. 
+
+NEED TO JUSTIFY SPECIFIC VARIABLES, MEDIAN HOUSING COST
 
 ## V-fold cross-validation
 
@@ -893,7 +1204,6 @@ NEED TO JUSTIFY SPECIFIC RACE VARIABLES, AGE, FOREIGN BORN, UNDOCUMENTED, MEDIAN
 train_folds <- vfold_cv(data = train, v = 10)
 
 ```
-
 
 # Testing models using 2020 data
 
@@ -1018,7 +1328,6 @@ knn_final_fit <-
 The KNN model out-of-sample RMSE is 14,286
 
 The LASSO model has the lowest out-of-sample RMSE.
-
 
 # Final LASSO model estimation on 2024 data
 
