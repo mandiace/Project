@@ -655,10 +655,11 @@ map_prophispanic <- train |>
     high = "darkgoldenrod1"
   )
 
-countymap_diff + map_propwhite + map_propblack + map_prophispanic
+#countymap_diff + map_propwhite + map_propblack + map_prophispanic
   
 ```
 
+Tried to create maps to visualize a relationship between white and non-white ethnic makeups and vote differentials but they're not very explanatory considering the vast swath of counties that voted red. Open to any ideas on how to improve the maps or to gut them altogether. Also saved your computer by not rendering the maps as it took mine about five minutes to do so. 
 
 ```{r, warning=FALSE, message=FALSE}
 options(sciepen = 999)
