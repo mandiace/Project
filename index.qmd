@@ -240,7 +240,6 @@ finaldata2020 <- finaldata2020 |> # reordering columns
          votes_dem_previous,
          diff_previous,
          per_point_diff_previous,
-         swing,
          land_area,
          total_population,
          population_density,
@@ -567,7 +566,6 @@ finaldata2024 <- finaldata2024 |> # reordering columns
          votes_dem_previous,
          diff_previous,
          per_point_diff_previous,
-         swing,
          land_area,
          total_population,
          population_density,
@@ -588,7 +586,8 @@ finaldata2024 <- finaldata2024 |> # reordering columns
          median_age,
          median_income,
          median_housing_costs,
-         male_ratio_per_100_females)
+         male_ratio_per_100_females,
+         swing)
 
 ```
 
@@ -611,7 +610,7 @@ test <- testing(modeling_sample)
 countymap_diff <- train |> 
   left_join(counties_geospatial, by = "county_fips") |>
   select(diff_current, geometry) |> 
-  filter(diff_current < 1000000) |> # removing democratic outliers
+  filter(diff_current > -1000000) |> # removing democratic outliers
   st_as_sf() |> 
   ggplot() + 
   geom_sf(aes(fill = diff_current)) + 
@@ -619,18 +618,6 @@ countymap_diff <- train |>
     low = "royalblue4",
     high = "firebrick3"
   )
-
-counties_geospatial |> 
-  left_join(train, by = "county_fips") |>
-  select(county_fips, diff_current, geometry) |>
-  ggplot() + 
-  geom_sf(aes(fill = diff_current)) + 
-  scale_fill_gradient(
-    low = "royalblue4",
-    high = "firebrick3"
-  )
-
-countymap_diff
 
 # us map of white proportions by county
 map_propwhite <- train |> 
