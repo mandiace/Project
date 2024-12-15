@@ -1210,6 +1210,8 @@ recipe <-
 
 ```
 
+Tried to log diff_current and diff_previous but recipe was not working.
+
 Note: step_corr() removes median_age predictor
 
 ## LASSO
@@ -1244,7 +1246,7 @@ lasso_final_fit <-
 
 ```
 
-The LASSO model out-of-sample RMSE is 6,553
+The LASSO model out-of-sample RMSE is [6,369, 6,553]
 
 ## Regression Tree
 
@@ -1279,7 +1281,7 @@ tree_final_fit <-
 
 ```
 
-The Regression Tree model out-of-sample RMSE is 36,661
+The Regression Tree model out-of-sample RMSE is [36,661, 41,626]
 
 ## KNN
 
@@ -1313,11 +1315,85 @@ knn_final_fit <-
 
 ```
 
-The KNN model out-of-sample RMSE is 14,286
+The KNN model out-of-sample RMSE is [14,286, 15,241]
 
 The LASSO model has the lowest out-of-sample RMSE.
 
 # Final LASSO model estimation on 2024 data
+
+```{r}
+final_model <- lasso_final_wf |> 
+  fit(data = finaldata2024)
+
+predictions <- bind_cols(
+  finaldata2024,
+  predict(object = final_model, new_data = finaldata2024)
+)
+
+print(predictions) |> 
+  select(diff_current, .pred)
+```
+
+Calculating winners 
+
+```{r}
+predictions <- predictions |> 
+  mutate(actual_winner = ifelse(diff_current < 0, "Dem", "Rep"),
+         rep_actual_winner = as_factor(ifelse(diff_current > 0, 1, 0)),
+         predicted_winner = ifelse(.pred < 0, "Dem", "Rep"),
+         rep_pred_winner = as_factor(ifelse(.pred > 0, 1, 0)))
+
+conf_mat(data = predictions,
+         truth = rep_actual_winner,
+         estimate = rep_pred_winner)
+
+accuracy(data = predictions,
+          truth = rep_actual_winner,
+          estimate = rep_pred_winner)
+
+precision(data = predictions,
+          truth = rep_actual_winner,
+          estimate = rep_pred_winner)
+
+recall(data = predictions,
+          truth = rep_actual_winner,
+          estimate = rep_pred_winner)
+```
+
+Election results
+
+```{r}
+# by electoral college
+
+electoral_college <- read_csv("data/Electoral_College.csv") |> 
+  select(!Abb_State) |> 
+  rename(state_name = Full_State)
+
+electoral_votes_state <- predictions |> 
+  group_by(state_name) |> 
+  summarize(sum_diff_current = sum(diff_current),
+            sum_diff_prediction = sum(.pred)) |> 
+  mutate(actual_winner = ifelse(sum_diff_current < 0, "Dem", "Rep"),
+         pred_winner = ifelse(sum_diff_prediction < 0, "Dem", "Rep")) |> 
+  left_join(electoral_college, by = "state_name") 
+
+electoral_votes_state |> 
+  group_by(actual_winner) |> 
+  summarize(sum_electoral_votes = sum(Electoral_College_Votes)) # actual winner was republican with 308 electoral votes
+
+electoral_votes_state |> 
+  group_by(pred_winner) |> 
+  summarize(sum_electoral_votes = sum(Electoral_College_Votes)) # predicted winner was republican with 323 electoral votes
+
+```
+
+Create electoral maps
+
+Benefit and importance of model
+
+How to improve model
+
+Redundant code below vvvvvvvvvvv
 
 ```{r, warning=FALSE, message=FALSE}
 # generate predictions
