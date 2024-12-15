@@ -1209,10 +1209,19 @@ recipe <-
   step_normalize(all_predictors())
 
 ```
+Why did we choose these steps for our recipe? 
 
-Tried to log diff_current and diff_previous but recipe was not working.
+We chose to imputate using knn to ensure that any missing predictors had an estimation. We chose knn instead of mean imputation because we felt this would provide an estimate that was based on more evidence (or observations), hopefully improving the accuracy of our missing data. 
 
-Note: step_corr() removes median_age predictor
+We also chose to include the step that removes highly correlated predictors. We wanted to ensure that we were not including predictors that were too related and hurt our model. Including this step was helpful, since it removed the median age as a predictor. 
+
+We logged two predictors, median income and median housing costs. This is because median income and housing costs have a wide range of values. By logging the variables, we improve the symmetry of our data and make it more linearly associated with the outcome variable. It helps reduce skewness of our data and helps us meet the key assumption of linearity in statistical modeling. 
+
+We decided to include a step to interact the swing county dummy predictor with the previous presidential differential result predictor. We chose to do this to ensure that our model did not necessarily estimate a republican winner because the previous differential shows that a republican won, or vice versa for a democratic candidate win. We also thought it would be important to note how being a swing county might impact the magnitude of the differential. Thus, we included an interaction between the swing dummy predictor and the previous presidential election differential results. 
+
+We normalized all predictors because of inherent differences across our types of predictors. We use variables that have a range of scales. For example, median age has a scale ranging from 0 to 100. A variable like housing costs, might vary from 100,000 dollars to 1 million. Having predictors with various scales could make some predictors influence our model estimation more than other predictors. By normalizing the predictors, we attempt to ensure that all predictors are considered equally in the model estimation. 
+
+
 
 ## LASSO
 
@@ -1391,7 +1400,9 @@ Create electoral maps
 
 Benefit and importance of model
 
-How to improve model
+What would we do differently next time?
+
+We encountered issues with the fact that the number of county votes in total varies. That is, not all counties contribute in the same magnitude to the presidential results on a national scale. Some counties contribute approximately 10,000 votes to the presidential election. Others may contribute 100,000 votes to the presidential election. In an attempt to solve this problem, we chose to predict differentials at the county level. The consequences of this choice was that our model RMSE does not provide a value that is easy to interpret. The number it provides is larger than the number of votes a county may have in total. Thus, the RMSE is difficult to interpret. Next time, we would like to figure out a way to solve this problem. We attempted to log our outcome variable in the step function in our recipe, but the model did not run when we tried this. Estimating the actual magnitude of the differentials in a presidential election was the most difficult part of this process. 
 
 Redundant code below vvvvvvvvvvv
 
