@@ -369,7 +369,7 @@ dc_data <- elections2024 |>
 ```{r, warning=FALSE, message=FALSE}
 
 elections2024 <- elections2024 |> 
-  filter(!county_fips %in% c(11001, 11002, 11003, 11004, 11005, 11006, 11007, 11008)) |> # dc data inputted manually from census burea information
+  filter(!county_fips %in% c(11001, 11002, 11003, 11004, 11005, 11006, 11007, 11008)) |> # dc data inputted manually from census bureau information
   bind_rows(dc_data)
 
 # rest of merge
@@ -609,7 +609,8 @@ test <- testing(modeling_sample)
 ## Exploratory analysis
 
 ```{r}
-countymap_diff <- train |> 
+# us map of vote outcomes by party
+countymap_winner <- train |> 
   left_join(counties_geospatial, by = "county_fips") |>
   select(diff_current, geometry) |>
   mutate(winner = if_else(diff_current > 0, "REP", "DEM")) |> 
@@ -658,11 +659,11 @@ map_prophispanic <- train |>
     high = "darkgoldenrod1"
   )
 
-#countymap_diff + map_propwhite + map_propblack + map_prophispanic
+#countymap_winner + map_propwhite + map_propblack + map_prophispanic
   
 ```
 
-Tried to create maps to visualize a relationship between white and non-white ethnic makeups and vote differentials but they're not very explanatory considering the vast swath of counties that voted red. Open to any ideas on how to improve the maps or to gut them altogether. Also saved your computer by not rendering the maps as it took mine about five minutes to do so. 
+Tried to create maps to visualize a relationship between white and non-white ethnic makeups and vote differentials but they're not very explanatory considering the vast swath of counties that voted red. Open to any ideas on how to improve the maps or to gut them altogether. Also saved your computer by not rendering the maps as it took mine about five minutes to do so.
 
 ```{r, warning=FALSE, message=FALSE}
 options(sciepen = 999)
@@ -698,9 +699,9 @@ This plot also demonstrates why we decided not to model a binary outcome variabl
 train |>
   mutate(winner = ifelse(diff_current < 0, "dem", "rep")) |> 
   group_by(winner) |>
-  summarize("Max margin" = abs(max(diff_current)),
-            "Min margin" = abs(min(diff_current)),
-            "Mean margin" = abs(mean(diff_current)),
+  summarize("Max margin" = max(diff_current),
+            "Min margin" = min(diff_current),
+            "Mean margin" = mean(diff_current),
             "SD margin"= sd(diff_current))
 
 ```
@@ -713,9 +714,9 @@ The average Democrat-won county in 2020 has a much larger margin (46,018 votes) 
 train |>
   mutate(winner = ifelse(diff_previous < 0, "dem", "rep")) |> 
   group_by(winner) |>
-  summarize("Max margin" = abs(max(diff_previous)),
-            "Min margin" = abs(min(diff_previous)),
-            "Mean margin" = abs(mean(diff_previous)),
+  summarize("Max margin" = max(diff_previous),
+            "Min margin" = min(diff_previous),
+            "Mean margin" = mean(diff_previous),
             "SD margin"= sd(diff_previous))
 ```
 
@@ -983,7 +984,7 @@ train |>
        y = "Differential in number of votes")
 
 
-finaldata2020 |>
+train |>
   ggplot() +
   geom_point(aes(x = gini, 
                  y = diff_current),
@@ -994,10 +995,22 @@ finaldata2020 |>
        x = "Gini",
        y = "Differential in number of votes")
 
+train |>
+  ggplot() +
+  geom_point(aes(x = median_housing_costs, 
+                 y = diff_current),
+             alpha = 0.3) + 
+  geom_smooth(mapping = aes(x = median_housing_costs, 
+                            y = diff_current)) +
+  labs(title = "Association between Median Housing Cost and Margins Winner in 2020",
+       x = "Median monthly cost in housing",
+       y = "Differential in number of votes")
 
 ```
 
 Neither poverty rate or gini index on their own seem to be a significant predictor of who won the county in the 2020 presidential election. Since a previous graph shows that relationship between the gini index and poverty rate seems to have a more significant effect in counties where republicans won, this could mean an interaction of the gini and poverty variables may be a helpful predictor.
+
+Median monthly housing costs, on the other hand, seems to be an effective predictor -- there seems to be a clear relationship between higher median monthly housing costs and preference for the Democratic party.
 
 ```{r}
 # Age 
@@ -1184,7 +1197,7 @@ foreignborn_plot2 <- train |>
 foreignborn_plot1 + foreignborn_plot2
 ```
 
-Counties with a higher proportion of immigrants are more likely to have a differential in favor of the Democratic party, demonstrating a clear relationship between the proportion of immigrants and vote outcomes. Interestingly, as the proportion of undocumented increases, the vote differential tends towards zero, perhaps as the result in the increase in the proportion of non-voting residents. As noted, counties with a higher proportion of immigrants are more likely to vote in favor of the Democratic party -- however, if in those same counties a high proportion of those immigrants are undocumented, then a greater portion of Democratic-leaning residents are unable to actually legally vote, thus offsetting any potential Democratic gains in votes and skewing the differential towards zero. This presents an interesting and perhaps inverse relationship between counties and their immigrant and citizenship makeups. 
+Counties with a higher proportion of immigrants are more likely to have a differential in favor of the Democratic party, demonstrating a clear relationship between the proportion of immigrants and vote outcomes. Interestingly, as the proportion of undocumented increases, the vote differential tends towards zero, perhaps as the result in the increase in the proportion of non-voting residents. As noted, counties with a higher proportion of immigrants are more likely to vote in favor of the Democratic party -- however, if in those same counties a high proportion of those immigrants are undocumented, then a greater portion of Democratic-leaning residents are unable to actually legally vote, thus offsetting any potential Democratic gains in votes and skewing the differential towards zero. This presents an interesting and perhaps inverse relationship between counties and their immigrant and citizenship makeups.
 
 NEED TO JUSTIFY SPECIFIC VARIABLES, MEDIAN HOUSING COST
 
@@ -1212,19 +1225,18 @@ recipe <-
   step_normalize(all_predictors())
 
 ```
-Why did we choose these steps for our recipe? 
 
-We chose to imputate using knn to ensure that any missing predictors had an estimation. We chose knn instead of mean imputation because we felt this would provide an estimate that was based on more evidence (or observations), hopefully improving the accuracy of our missing data. 
+Why did we choose these steps for our recipe?
 
-We also chose to include the step that removes highly correlated predictors. We wanted to ensure that we were not including predictors that were too related and hurt our model. Including this step was helpful, since it removed the median age as a predictor. 
+We chose to imputate using knn to ensure that any missing predictors had an estimation. We chose knn instead of mean imputation because we felt this would provide an estimate that was based on more evidence (or observations), hopefully improving the accuracy of our missing data.
 
-We logged two predictors, median income and median housing costs. This is because median income and housing costs have a wide range of values. By logging the variables, we improve the symmetry of our data and make it more linearly associated with the outcome variable. It helps reduce skewness of our data and helps us meet the key assumption of linearity in statistical modeling. 
+We also chose to include the step that removes highly correlated predictors. We wanted to ensure that we were not including predictors that were too related and hurt our model. Including this step was helpful, since it removed the median age as a predictor.
 
-We decided to include a step to interact the swing county dummy predictor with the previous presidential differential result predictor. We chose to do this to ensure that our model did not necessarily estimate a republican winner because the previous differential shows that a republican won, or vice versa for a democratic candidate win. We also thought it would be important to note how being a swing county might impact the magnitude of the differential. Thus, we included an interaction between the swing dummy predictor and the previous presidential election differential results. 
+We logged two predictors, median income and median housing costs. This is because median income and housing costs have a wide range of values. By logging the variables, we improve the symmetry of our data and make it more linearly associated with the outcome variable. It helps reduce skewness of our data and helps us meet the key assumption of linearity in statistical modeling.
 
-We normalized all predictors because of inherent differences across our types of predictors. We use variables that have a range of scales. For example, median age has a scale ranging from 0 to 100. A variable like housing costs, might vary from 100,000 dollars to 1 million. Having predictors with various scales could make some predictors influence our model estimation more than other predictors. By normalizing the predictors, we attempt to ensure that all predictors are considered equally in the model estimation. 
+We decided to include a step to interact the swing county dummy predictor with the previous presidential differential result predictor. We chose to do this to ensure that our model did not necessarily estimate a republican winner because the previous differential shows that a republican won, or vice versa for a democratic candidate win. We also thought it would be important to note how being a swing county might impact the magnitude of the differential. Thus, we included an interaction between the swing dummy predictor and the previous presidential election differential results.
 
-
+We normalized all predictors because of inherent differences across our types of predictors. We use variables that have a range of scales. For example, median age has a scale ranging from 0 to 100. A variable like housing costs, might vary from 100,000 dollars to 1 million. Having predictors with various scales could make some predictors influence our model estimation more than other predictors. By normalizing the predictors, we attempt to ensure that all predictors are considered equally in the model estimation.
 
 ## LASSO
 
@@ -1258,7 +1270,7 @@ lasso_final_fit <-
 
 ```
 
-The LASSO model out-of-sample RMSE is [6,369, 6,553]
+The LASSO model out-of-sample RMSE is \[6,162, 6,553\]
 
 ## Regression Tree
 
@@ -1293,7 +1305,7 @@ tree_final_fit <-
 
 ```
 
-The Regression Tree model out-of-sample RMSE is [36,661, 41,626]
+The Regression Tree model out-of-sample RMSE is \[36,661, 41,626\]
 
 ## KNN
 
@@ -1327,7 +1339,7 @@ knn_final_fit <-
 
 ```
 
-The KNN model out-of-sample RMSE is [14,286, 15,241]
+The KNN model out-of-sample RMSE is \[14,286, 15,241\]
 
 The LASSO model has the lowest out-of-sample RMSE.
 
@@ -1344,9 +1356,15 @@ predictions <- bind_cols(
 
 print(predictions) |> 
   select(diff_current, .pred)
+
+predictions_final_fit <-
+  lasso_final_wf |>
+  last_fit(modeling_sample) |>
+  collect_metrics() |>
+  print() # RMSE of ~ 6,162.
 ```
 
-Calculating winners 
+## Calculating winners
 
 ```{r}
 predictions <- predictions |> 
@@ -1372,7 +1390,7 @@ recall(data = predictions,
           estimate = rep_pred_winner)
 ```
 
-Election results
+## Electoral results
 
 ```{r}
 # by electoral college
@@ -1426,12 +1444,25 @@ predicted_2024_map <- state_geospatial |>
 
 actual_2024_map + predicted_2024_map
 
+finaldata2024 |> 
+  filter(state_name == "Connecticut") |> 
+  select(diff_current, diff_previous) |> 
+  view()
+
 ```
 
-Create electoral maps
+The model seems to be fairly accurate in predicting the vote differentials per county but, more importantly, in predicting the outcome of the 2024 presidential election. Although the RMSE of the final model may be of concern, the aggregate state outcomes nonetheless convey an accurate prediction of the 2024 presidential election, correctly anticipating a Donald Trump victory. Our model suggests that, despite the assumingly unprecedented likelihood of Trump's re-election backed by popular media, his victory could have been predicted utilizing county demographic, economic, and political factors that we included in our LASSO model.
 
-Benefit and importance of model
+## Limitations
 
-What would we do differently next time?
+### Inability to logarithmize diff_current
 
-We encountered issues with the fact that the number of county votes in total varies. That is, not all counties contribute in the same magnitude to the presidential results on a national scale. Some counties contribute approximately 10,000 votes to the presidential election. Others may contribute 100,000 votes to the presidential election. In an attempt to solve this problem, we chose to predict differentials at the county level. The consequences of this choice was that our model RMSE does not provide a value that is easy to interpret. The number it provides is larger than the number of votes a county may have in total. Thus, the RMSE is difficult to interpret. Next time, we would like to figure out a way to solve this problem. We attempted to log our outcome variable in the step function in our recipe, but the model did not run when we tried this. Estimating the actual magnitude of the differentials in a presidential election was the most difficult part of this process. 
+The primary outcome -- diff_current -- describes the differential in the number of votes between the Republican and Democratic candidates. Since counties vary greatly in population, the RMSE of diff_current is larger than the population of some counties, let alone the total number of votes. Utilizing a logarithmic version of our primary outcome variable would have been best practice in order to control for this drawback while also maintaining the ability to aggregate the differential at the state level. However, the inclusion of a step_log with respect to diff_current function in our recipe resulted in errors, forcing us to forego the logarithmic transformation of our outcome.
+
+### Missing data
+
+There are two instances of significant missing data in particular. Both models exclude the State of Alaska and every one of the state's boroughs, census areas, or county equivalents, due to a mismatch in unit of observations reported in the predictor and vote data. Since no clear connection between the Alaskan observations could be made for the entire state, all observations from Alaska were dropped. Additionally, the State of Connecticut reconstructed their census-designated statistical areas and, starting in 2022, the Census Bureau began to produce estimates for these newly-designated areas instead of Connecticut's counties. Although the ACS 1-year estimates and the voting data has information for Connecticut's census areas in 2022 and 2024, respectively, CT's census areas do not have previous years voting data due to their recent creation, resulting in missing data for the diff_previous predictor. Instead of dropping Connecticut data altogether, though, we decided to utilize a step_impute_knn with respect to missing data function in order to conserve CT's remaining predictors.
+
+## What would we do differently next time?
+
+We encountered issues with the fact that the number of county votes in total varies. That is, not all counties contribute in the same magnitude to the presidential results on a national scale. Some counties contribute approximately 10,000 votes to the presidential election. Others may contribute 100,000 votes to the presidential election. In an attempt to solve this problem, we chose to predict differentials at the county level. The consequences of this choice was that our model RMSE does not provide a value that is easy to interpret. The number it provides is larger than the number of votes a county may have in total. Thus, the RMSE is difficult to interpret. Next time, we would like to figure out a way to solve this problem. We attempted to log our outcome variable in the step function in our recipe, but the model did not run when we tried this. Estimating the actual magnitude of the differentials in a presidential election was the most difficult part of this process.
