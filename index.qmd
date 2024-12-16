@@ -103,7 +103,9 @@ counties_geospatial <-  counties(cb = TRUE) |>
   rename(county_fips = GEOID) |> 
   select(county_fips, geometry)
 
-state_geospatial <- states(cb = TRUE)
+state_geospatial <- states(cb = TRUE) |> 
+  rename(state_name = NAME) |> 
+  select(state_name, geometry)
 
 ```
 
@@ -609,14 +611,15 @@ test <- testing(modeling_sample)
 ```{r}
 countymap_diff <- train |> 
   left_join(counties_geospatial, by = "county_fips") |>
-  select(diff_current, geometry) |> 
-  filter(diff_current > -1000000) |> # removing democratic outliers
+  select(diff_current, geometry) |>
+  mutate(winner = if_else(diff_current > 0, "REP", "DEM")) |> 
   st_as_sf() |> 
   ggplot() + 
-  geom_sf(aes(fill = diff_current)) + 
-  scale_fill_gradient(
-    low = "royalblue4",
-    high = "firebrick3"
+  geom_sf(aes(fill = winner)) + 
+  scale_fill_manual(values = c(
+      "DEM" = "royalblue4",
+      "REP" = "firebrick3"),
+    name = "Winner"
   )
 
 # us map of white proportions by county
@@ -1394,6 +1397,35 @@ electoral_votes_state |>
   group_by(pred_winner) |> 
   summarize(sum_electoral_votes = sum(Electoral_College_Votes)) # predicted winner was republican with 323 electoral votes
 
+# maps
+actual_2024_map <- state_geospatial |> 
+  left_join(electoral_votes_state, by = "state_name") |> 
+  filter(!is.na(actual_winner)) |> 
+  select(actual_winner, geometry) |> 
+  ggplot() + 
+  geom_sf(mapping = aes(fill = actual_winner)) + 
+  scale_fill_manual(values = c(
+    "Dem" = "royalblue4",
+    "Rep" = "firebrick3")
+  ) + 
+  labs(title = "Electoral map (2024)",
+       fill = "Winner")
+
+predicted_2024_map <- state_geospatial |> 
+  left_join(electoral_votes_state, by = "state_name") |> 
+  filter(!is.na(pred_winner)) |> 
+  select(pred_winner, geometry) |> 
+  ggplot() + 
+  geom_sf(mapping = aes(fill = pred_winner)) + 
+  scale_fill_manual(values = c(
+    "Dem" = "royalblue4",
+    "Rep" = "firebrick3")
+  ) + 
+  labs(title = "Predicted electoral map (2024)",
+       fill = "")
+
+actual_2024_map + predicted_2024_map
+
 ```
 
 Create electoral maps
@@ -1403,55 +1435,3 @@ Benefit and importance of model
 What would we do differently next time?
 
 We encountered issues with the fact that the number of county votes in total varies. That is, not all counties contribute in the same magnitude to the presidential results on a national scale. Some counties contribute approximately 10,000 votes to the presidential election. Others may contribute 100,000 votes to the presidential election. In an attempt to solve this problem, we chose to predict differentials at the county level. The consequences of this choice was that our model RMSE does not provide a value that is easy to interpret. The number it provides is larger than the number of votes a county may have in total. Thus, the RMSE is difficult to interpret. Next time, we would like to figure out a way to solve this problem. We attempted to log our outcome variable in the step function in our recipe, but the model did not run when we tried this. Estimating the actual magnitude of the differentials in a presidential election was the most difficult part of this process. 
-
-Redundant code below vvvvvvvvvvv
-
-```{r, warning=FALSE, message=FALSE}
-# generate predictions
-
-predictions_decision <- bind_cols(
-  test,
-  predict(object = fit_decision,
-          new_data = test))
-
-# evaluate the model
-
-truth_decision <- predictions_decision |> 
-  group_by(state_name) |> 
-  summarize(sum_diff_current = sum(diff_current))
-
-pred_decision <- predictions_decision |> 
-  group_by(state_name) |> 
-  summarize(sum_diff_prediction = sum(.pred))
-
-finalmodel_decision <- truth_decision |> 
-  left_join(pred_decision, by = "state_name") |> 
-  mutate(difference_in_prediction = sum_diff_prediction - sum_diff_current,
-         actual_winner = if_else(sum_diff_current < 0, "DEM", "GOP"),
-         predicted_winner = if_else(sum_diff_prediction < 0, "DEM", "GOP"),
-         correct_prediction = if_else(actual_winner == predicted_winner, 1, 0))
-
-# loading electoral college
-
-electoral_college <- read_csv("data/Electoral_College.csv") |> 
-  select(!Abb_State) |> 
-  rename(state_name = Full_State)
-
-# merging decision tree final model with electoral college
-
-finalmodel_decision <- finalmodel_decision |> 
-  left_join(electoral_college, by = "state_name")
-
-# calculating presidential race winners
-
-finalmodel_decision |> 
-  group_by(actual_winner) |> 
-  summarize(sum_electoral_votes = sum(Electoral_College_Votes)) # actual winner was democrat with 316 electoral votes
-
-finalmodel_decision |> 
-  group_by(predicted_winner) |> 
-  summarize(sum_electoral_votes = sum(Electoral_College_Votes)) # predicted winner was democrat with 274 electoral votes
-
-# constructing electoral map by county
-
-```
