@@ -1,8 +1,12 @@
 ---
-title: "Final Project"
+title: "Predicting the 2024 Presidential Election Through the Use of a Predictive Model"
+subtitle: "Intro to Data Science Final Project"
 author: "Mandi Acevedo, Kevin Velasco, Bela Walkin"
+date: "December 17, 2024"
+warning: false
 format: html
 editor: visual
+embed-resources: true
 ---
 
 ```{r, warning=FALSE, message=FALSE}
@@ -1200,7 +1204,6 @@ foreignborn_plot1 + foreignborn_plot2
 
 Counties with a higher proportion of immigrants are more likely to have a differential in favor of the Democratic party, demonstrating a clear relationship between the proportion of immigrants and vote outcomes. Interestingly, as the proportion of undocumented increases, the vote differential tends towards zero, perhaps as the result in the increase in the proportion of non-voting residents. As noted, counties with a higher proportion of immigrants are more likely to vote in favor of the Democratic party -- however, if in those same counties a high proportion of those immigrants are undocumented, then a greater portion of Democratic-leaning residents are unable to actually legally vote, thus offsetting any potential Democratic gains in votes and skewing the differential towards zero. This presents an interesting and perhaps inverse relationship between counties and their immigrant and citizenship makeups.
 
-
 ## V-fold cross-validation
 
 ```{r, warning=FALSE, message=FALSE}
@@ -1353,7 +1356,6 @@ The KNN model out-of-sample RMSE is 15,241.
 
 The LASSO model has the lowest out-of-sample RMSE, so we will use it for our model implementation using the 2024 data.
 
-
 # Final LASSO model estimation on 2024 data
 
 ```{r}
@@ -1384,7 +1386,6 @@ finaldata2024 |>
 ```
 
 Our final LASSO model RMSE is 6,369. This is a fairly high RMSE, considering that the voting margin is, on average, about 8,000 votes in Republican-won counties and 41,580 votes in Democrat-won counties. This model may not be the best for predicting precise margins on the county level. Does the model perform better as a predictor of binary outcomes?
-
 
 ## Calculating binary outcome variable (winning party)
 
@@ -1428,7 +1429,6 @@ Our model has a 95% accuracy rate, which means that it correctly predicts the pa
 However, these high precision, accuracy, and recall scores may be misleading, as the vast majority of counties in 2024 (2657 / 3110 observations, or 85%) voted Republican. Our model could have high accuracy, precision, and recall rates simply by predicting Republican every time, but it would not be a good model.
 
 The model's specificity, or the rate at which the model correctly predicts true negative (Democrat-won) observations, is thus a much better indicator of model performance. Our specificity rate is 70%, which is better than random guessing, but reveals the weakness of this model. Overall, the model still does a pretty good job at predicting the winning presidential party on the county-level.
-
 
 ## Comparing predicted vs actual electoral college results
 
@@ -1486,8 +1486,8 @@ predicted_2024_map <- state_geospatial |>
 actual_2024_map + predicted_2024_map
 
 ```
-Our model is not precise enough to predict voting margins well, and it skews Republican (Republican wins are overpredicted and Democratic wins are underpredicted). In part due to its Republican-skew, the model performs fairly well in predicting the outcome of the 2024 presidential election. Although the RMSE of the final model may be of concern, the aggregate state outcomes convey an accurate prediction of the 2024 presidential election, correctly anticipating a Donald Trump victory (though by a wider margin than he actually won). Our model suggests that, despite the assumingly unprecedented likelihood of Trump's re-election backed by popular media, his victory could have been predicted utilizing county demographic, economic, and political factors that we included in our LASSO model. 
 
+Our model is not precise enough to predict voting margins well, and it skews Republican (Republican wins are overpredicted and Democratic wins are underpredicted). In part due to its Republican-skew, the model performs fairly well in predicting the outcome of the 2024 presidential election. Although the RMSE of the final model may be of concern, the aggregate state outcomes convey an accurate prediction of the 2024 presidential election, correctly anticipating a Donald Trump victory (though by a wider margin than he actually won). Our model suggests that, despite the assumingly unprecedented likelihood of Trump's re-election backed by popular media, his victory could have been predicted utilizing county demographic, economic, and political factors that we included in our LASSO model.
 
 ### Additional weaknesses: inability to logarithmize margins and missing data
 
