@@ -1,5 +1,5 @@
 ---
-title: "Predicting the 2024 Presidential Election Through the Use of a Predictive Model"
+title: "Predicting the 2024 Presidential Election County Level Results"
 subtitle: "Intro to Data Science Final Project"
 author: "Mandi Acevedo, Kevin Velasco, Bela Walkin"
 date: "December 17, 2024"
@@ -99,7 +99,7 @@ county_size <- county_size |>
 
 ### Download county and state geospatial data
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 counties_geospatial <-  counties(cb = TRUE) |> 
   mutate(GEOID = sub("^0", "", GEOID)) |> 
@@ -340,7 +340,7 @@ elections2024  <- read_csv("data/2024_US_County_Level_Presidential_Results.csv")
 
 ### Rolling up DC elections data into a single row
 
-DC data is presented by ward in the elections dataset, but not the 2022 predictors dataset. We role the elections data into a single observation to match our predictor data.
+DC data is presented by ward in the elections dataset, but not the 2022 predictors dataset. We roll the elections data into a single observation to match our predictor data.
 
 ```{r, warning=FALSE, message=FALSE}
 
@@ -640,6 +640,10 @@ map_propwhite <- train |>
     high = "chartreuse3"
   )
 
+countymap_winner + map_propwhite
+```
+
+``` {r}
 # us map of black proportions by county
 map_propblack <- train |> 
   left_join(counties_geospatial, by = "county_fips") |>
@@ -664,11 +668,11 @@ map_prophispanic <- train |>
     high = "darkgoldenrod1"
   )
 
-countymap_winner + map_propwhite + map_propblack + map_prophispanic
+map_propblack + map_prophispanic
   
 ```
 
-Tried to create maps to visualize a relationship between white and non-white ethnic makeups and vote differentials but they're not very explanatory considering the vast swath of counties that voted red. Open to any ideas on how to improve the maps or to gut them altogether. Also saved your computer by not rendering the maps as it took mine about five minutes to do so.
+Add explanation
 
 ```{r, warning=FALSE, message=FALSE}
 options(sciepen = 999)
@@ -696,7 +700,7 @@ train |>
 
 Republicans won more counties than Democrats in the 2020 presidential election, but the Democratic tail of the distribution is much longer, indicating that large margins happened more often in counties that Democrats won than in counties that Republicans won. We know that a Republican candidate did not win in 2020. This implies that while the Republican candidate won more counties overall in 2020, Democrats disproportionately won counties with large populations. This is demonstrated in our table. In 2020, the Republican candidate won the significant majority of all counties with a below-90th percentile population size. However, the Democratic candidate won about 67% of the largest 10% of counties in the nation.
 
-This plot also demonstrates why we decided not to model a binary outcome variable capturing whether a Republican won in each county, as such a model would be biased towards Republicans and would not useful in informing national-level winners. Instead, we chose to use margins as our outcome variable, which capture the same information as a binary winner variable while also potentially proving more useful for national-level predictions.
+This plot also demonstrates why we decided not to model a binary outcome variable capturing whether a Republican won in each county, as such a model would be biased towards Republicans and would not be useful in informing national-level winners. Instead, we chose to use margins as our outcome variable, which capture the same information as a binary winner variable while also potentially proving more useful for national-level predictions.
 
 ```{r}
 # Exploring spread of values in margins variable in 2020 election
@@ -742,10 +746,10 @@ train |>
 
 ```
 
-In the 2016 election, 45 values may be strong outliers in the analysis. This is relatively close to the number of outliers in the 2020 presidential election. Similarly, the standard deviation is relatively high as well. This may mean that the values are not close together, varying greatly. However, the mean is decently close to the minimum value, telling us that the outlier with the largest magnitude may be pulling these values upwards, and the rest of the outliers are closer to the -104746 value. Since the number of outliers is decently similar between the 2016 and 2020 presidential election (53 and 45), this may not be of strong concern. These outliers may also be of less concern since they make up such a small portion of the data set. The values we would be concerned about make up about 1.7%.
+In the 2016 election, 45 values may be extreme values in the analysis. We defined Democratic extreme values as any margin greater than the highest Republican margin. This is relatively close to the number of extreme values in the 2020 presidential election. Similarly, the standard deviation is relatively high as well. This may mean that the values are not close together, varying greatly. However, the mean is decently close to the minimum value, telling us that the extreme values with the largest magnitude may be pulling these values upwards, and the rest of the extreme values are closer to the -104746 value. Since the number of extreme values is decently similar between the 2016 and 2020 presidential election (53 and 45), this may not be of strong concern. These extreme values may also be of less concern since they make up such a small portion of the data set. The values we would be concerned about make up about 1.7%.
 
 ```{r}
-#What counties make up these outliers in both the 2016 and 2020 elections? 
+#What counties make up these extreme values in both the 2016 and 2020 elections? 
 
 outliers <- train |>
   filter(diff_current < -119005 | diff_previous < -104444)
@@ -754,7 +758,7 @@ print(table(outliers$state_name))
 
 ```
 
-As expected, California repeats the most in the outliers for democrat wins. Interestingly, some swing states show up in this. Since so few show up in this analysis, and many in places we would expect a democrat win, this may not be of great concern. However, it is interesting to note. Possibly, state could be interesting predictor for a place like California.
+As expected, California repeats the most in the extreme values for democrat wins. Interestingly, some swing states show up in this. Since so few show up in this analysis, and many in places we would expect a democrat win, this may not be of great concern. However, it is interesting to note. Possibly, state could be interesting predictor for a place like California.
 
 ```{r, warning=FALSE, message=FALSE}
 #Education distribution by County Winner 
@@ -800,7 +804,7 @@ train |>
               se = FALSE,
               color = "grey",
               linetype = "dashed") + 
-  labs(title = "Association between proportion of county with less than high school educ. and margin",
+  labs(title = "Association between proportion of counties with \nless than high school educ. and margin",
        x = "Proportion less than high school",
        y = "Differential in number of votes")
 
@@ -815,7 +819,7 @@ train |>
               se = FALSE,
               color = "grey",
               linetype = "dashed") + 
-  labs(title = "Association between proportion of county with high school educ. and margin",
+  labs(title = "Association between proportion of counties with \nhigh school educ. and margin",
        x = "Proportion of high school graduates",
        y = "Differential in number of votes")
 
@@ -830,7 +834,7 @@ train |>
               se = FALSE,
               color = "grey",
               linetype = "dashed") + 
-  labs(title = "Association between proportion of county with some college or associate's and margin",
+  labs(title = "Association between proportion of counties with \nsome college or associate's and margin",
        x = "Proportion some college or associates degree",
        y = "Differential in number of votes")
 
@@ -845,7 +849,7 @@ train |>
               se = FALSE,
               color = "grey",
               linetype = "dashed") + 
-  labs(title = "Association between proportion of county with a bachelor's and margin",
+  labs(title = "Association between proportion of counties with a \nbachelor's degree or higher and margin",
        x = "Proportion bachelor's degree or higher",
        y = "Differential in the number of votes")
 
@@ -899,7 +903,7 @@ train |>
 
 ```
 
-This graph shows that lower unemployment rates are associated with republican wins (Republican win = positive margin). Interestingly, higher unemployment rates are not necessarily associated with negative margins, or Democratic party wins. The summary line shows that while the association between the party win and unemployment rates is negative (an increase in unemployment rate is associated with a decrease in margins), it is barely negative. This means the association between who wins a presidential election and unemployment rate might not be helpful. As expected though, counties with higher unemployment rates are more likely to fall below the poverty line, which we defined as 20% (based on the USDA, Economic Research Service’s (ERS) Poverty Area Measures). It is also interesting to note that places with a high poverty rate seem to have a smaller margin, and do not necessarily fall into a democrat winner or a republican winner. That being said, more counties with a high poverty rate do vote have a democrat win in the presidential election.
+This graph shows that lower unemployment rates are associated with republican wins (Republican win = positive margin). Interestingly, higher unemployment rates are not necessarily associated with negative margins, or Democratic party wins. The summary line shows that while the association between the party win and unemployment rates is negative (an increase in unemployment rate is associated with a decrease in margins), it is barely negative. This means the association between who wins a presidential election and unemployment rate might not be helpful. As expected though, counties with higher unemployment rates are more likely to fall below the poverty line, which we defined as 20% (based on the USDA, Economic Research Service’s (ERS) Poverty Area Measures). It is also interesting to note that places with a high poverty rate seem to have a smaller margin, and do not necessarily fall into a democrat winner or a republican winner. That being said, counties with a poverty rate above twenty percent are more likely to vote for a democrat in the presidential election than those with poverty rate below twenty percent.
 
 ```{r}
 # Further poverty rate exploration
@@ -919,6 +923,7 @@ unemployment_graph_1 <- train |>
   annotate("text", x = 0.11, y = max(finaldata2020$diff_previous, na.rm = TRUE), 
            label = "High Unemployment Rate, 10%", color = "blue", hjust = 0) +
   labs(title = "Unemployment rate and margins in 2020 election",
+       subtitle = "Including extreme dem values",
        x = "Unemployment rate",
        y = "Differential in number of votes")
   
@@ -938,8 +943,8 @@ unemployment_graph_2 <- train |>
   geom_vline(xintercept = 0.1, linetype = "dotted", color = "blue") +
   annotate("text", x = 0.11, y = max(finaldata2020$diff_previous, na.rm = TRUE), 
            label = "High Unemployment Rate, 10%", color = "blue", hjust = 0) +
-  labs(title = "Unemployment rate and margins in 2020 election",
-       subtitle = "Outliers removed",
+  labs(title = "",
+       subtitle = "Excluding extreme dem values",
        x = "Unemployment rate",
        y = "")
 
@@ -947,7 +952,7 @@ unemployment_graph_1 + unemployment_graph_2
 
 ```
 
-In these graphs, we checked to see how unemployment rate might be associated with the margins variable in both the 2020, both with and without the outliers in the margins variable. In both graphs, there is little to no association between the two. The vertical line represents where high unemployment rate is, 10% (based on the Organization for Economic Co-operation and Development 2013 factbook). It does not appear that having a high unemployment rate would change the non-relationship between unemployment rate and margins variable. These graphs demonstrate that unemployment rate may not be a strong predictor. Although it looks more counties with a high unemployment rate favored the democratic party, it does not appear to be more by a significnat amount.
+In these graphs, we checked to see how unemployment rate might be associated with the margins variable in both the 2020, both with and without the outliers in the margins variable. In both graphs, there is little to no association between the two. The vertical line represents where high unemployment rate is, 10% (based on the Organization for Economic Co-operation and Development 2013 factbook). It does not appear that having a high unemployment rate would change the non-relationship between unemployment rate and margins variable. These graphs demonstrate that unemployment rate may not be a strong predictor. Although it looks like more counties with a high unemployment rate favored the democratic party compared to those with a low unemployment rate, it does not appear to be more by a significant amount.
 
 ```{r, warning=FALSE, message=FALSE}
 
@@ -972,7 +977,7 @@ train |>
   
 ```
 
-This graph shows that an increase in poverty rate is associated with an increase in the gini index, or income inequality, regardless of what party won in the presidential election. What is interesting is that for counties where a republican candidate won, the summary line starts at a lower point in the graph and ends higher. That is, the republican line is steeper than the democratic line. This could mean that for republican-winning counties, the relationship between poverty rate and gini index is more negatively associated then democrat winning counties. This graph looks like democrat winning counties fall higher on the gini index and poverty rate. Below, we dive into this relationship further.
+This graph shows that an increase in poverty rate is associated with an increase in the gini index, or income inequality, regardless of what party won the county. What is interesting is that for counties where a republican candidate won, the summary line starts at a lower point in the graph and ends higher. That is, the republican line is steeper than the democratic line. This could mean that for republican-winning counties, the relationship between poverty rate and gini index is more negatively associated then democrat winning counties. This graph looks like democrat winning counties fall higher on the gini index and poverty rate. Below, we dive into this relationship further.
 
 ```{r}
 # Exploring gini index and poverty rate relationship with winning party
@@ -1018,28 +1023,7 @@ Neither poverty rate or gini index on their own seem to be a significant predict
 Median monthly housing costs, on the other hand, seems to be an effective predictor -- there seems to be a clear relationship between higher median monthly housing costs and preference for the Democratic party.
 
 ```{r}
-# Age 
-
-train |>
-  
-
 # Distribution
-train |>
-  select(state_name, prop_18_to_24, prop_65_years_older, diff_current) |>
-  mutate(winner = ifelse(diff_current < 0, "Dem", "Rep")) |> 
-  group_by(winner) |> 
-  mutate(dem_18 = mean(
-  pivot_longer(cols = c(prop_18_to_24, prop_18_to_24, prop_other),
-               names_to = "education_level", values_to = "proportion") |>
-ggplot(aes(x = winner, y = proportion, fill = education_level)) +
-  geom_bar(stat = "identity") +
-  labs(title = "Education Distribution by County Winner in 2020", y = "Proportion (%)", x = "Winner") +
-  scale_y_continuous(labels = scales::percent) +  
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  theme(axis.text.y = element_blank(),
-        axis.title.y = element_blank())
-
-  
 train |>
   select(state_name, prop_18_to_24, prop_65_years_older, diff_current) |>
   mutate(winner = ifelse(diff_current < 0, "Dem", "Rep"),
@@ -1069,7 +1053,7 @@ train |>
 
 ```
 
-As expected, the age group that seems to be different between counties where a democrat won versus a republican is the 18 to 24 category. It appears that younger people vote more for the democratic candidate than the republican candidate. As expected, the republican counties had a higher share of the older age population voting for them. This falls in line with our intuition and tells us its propbably important to include both in our model.
+As expected, the age group that seems to be different between counties where a democrat won versus a republican is the 18 to 24 category. It appears that younger people vote more for the democratic candidate than the republican candidate. As expected, the republican counties had a higher share of the older age population voting for them. This falls in line with our intuition and tells us its likely important to include both in our model.
 
 ```{r}
 train |> 
@@ -1152,6 +1136,7 @@ medianage_plot2 <- train |>
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") + 
   geom_vline(xintercept = 41.5, linetype = "dashed", color = "black") + 
   labs(title = "",
+       subtitle = "Excluding dem extreme values",
        x = "Median age",
        y = "")
 
@@ -1195,6 +1180,7 @@ foreignborn_plot2 <- train |>
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") + 
   geom_vline(xintercept = 0.0753, linetype = "dashed", color = "black") + 
   labs(title = "",
+       subtitle = "Excluding dem extreme values",
        x = "",
        y = "",
        color = "Proportion of Undocumented \nStatus among Foreign \nBorn Individuals")
@@ -1237,11 +1223,11 @@ We chose to imputate using knn to ensure that any missing predictors, such as th
 
 We also chose to include the step that removes highly correlated predictors. We wanted to ensure that we were not including predictors that were too related and hurt our model. Including this step was helpful, since it removed the median age as a predictor.
 
-We logged two predictors, median income and median housing costs. This is because median income and housing costs have a wide range of values. By logging the variables, we improve the symmetry of our data and make it more linearly associated with the outcome variable. It helps reduce skewness of our data and helps us meet the key assumption of linearity in statistical modeling.
+We logged two predictors, median income and median housing costs. This is because median income and housing costs have a wide range of values. By logging the variables, we improve the symmetry of our data. This prevents extreme observations in the form of outliers from skewing and potentially biasing the predictions. 
 
 We decided to include a step to interact the swing county dummy predictor with the previous presidential differential result predictor. We chose to do this to ensure that our model did not necessarily estimate a republican winner because the previous differential shows that a republican won, or vice versa for a democratic candidate win. We also thought it would be important to note how being a swing county might impact the magnitude of the differential. Thus, we included an interaction between the swing dummy predictor and the previous presidential election differential results.
 
-We normalized all predictors because of inherent differences across our types of predictors. We use variables that have a range of scales. For example, median age has a scale ranging from 0 to 100. A variable like housing costs, might vary from 100,000 dollars to 1 million. Having predictors with various scales could make some predictors influence our model estimation more than other predictors. By normalizing the predictors, we attempt to ensure that all predictors are considered equally in the model estimation.
+We normalized all predictors because of inherent differences across our types of predictors. This is in line with the requirement of LASSO models that all predictors should be centered and scaled in order to standardize coefficient units.
 
 We included total population as a predictor in our recipe in place of using weights.
 
@@ -1370,7 +1356,7 @@ predictions2024 <- bind_cols(
   predict(object = final_model, new_data = finaldata2024)
 )
 
-print(predictions) |> 
+print(predictions2024) |> 
   select(diff_current, .pred)
 
 lasso_final_wf |>
@@ -1389,7 +1375,7 @@ Our final LASSO model RMSE is 6,369. This is a fairly high RMSE, considering tha
 
 ## Calculating binary outcome variable (winning party)
 
-Our model in unique in that, in addition to predicting voting margins, it can predictor binary county outcomes (Republican or Democrat winner) based on whether the predicted margin is positive or negative. We write code for this binary prediction to further evaluate our model using a confusion matrix and other measures of prediction accuracy.
+Our model in unique in that, in addition to predicting voting margins, it can predict binary county outcomes (Republican or Democrat winner) based on whether the predicted margin is positive or negative. We write code for this binary prediction to further evaluate our model using a confusion matrix and other measures of prediction accuracy.
 
 ```{r}
 predictions2024 <- predictions2024 |> 
@@ -1440,7 +1426,7 @@ electoral_college <- read_csv("data/Electoral_College.csv") |>
   select(!Abb_State) |> 
   rename(state_name = Full_State)
 
-electoral_votes_state <- predictions |> 
+electoral_votes_state <- predictions2024 |> 
   group_by(state_name) |> 
   summarize(sum_diff_current = sum(diff_current),
             sum_diff_prediction = sum(.pred)) |> 
@@ -1497,4 +1483,6 @@ There are two instances of significant missing data in particular. Both models e
 
 ## What would we do differently next time?
 
-We encountered issues with the fact that the number of county votes in total varies. That is, not all counties contribute in the same magnitude to the presidential results on a national scale. Some counties contribute approximately 10,000 votes to the presidential election. Others may contribute 100,000 votes to the presidential election. In an attempt to solve this problem, we chose to predict differentials at the county level. The consequences of this choice was that our model RMSE does not provide a value that is easy to interpret. The number it provides is larger than the number of votes a county may have in total. Thus, the RMSE is difficult to interpret. Next time, we would like to figure out a way to solve this problem. We attempted to log our outcome variable in the step function in our recipe, but the model did not run when we tried this. Estimating the actual magnitude of the differentials in a presidential election was the most difficult part of this process.
+We encountered issues with the fact that the number of county votes in total varies. That is, not all counties contribute in the same magnitude to the presidential results on a national scale. Some counties contribute approximately 10,000 votes to the presidential election. Others may contribute 100,000 votes to the presidential election. In an attempt to solve this problem, we chose to predict differentials at the county level. The consequences of this choice was that our model RMSE does not provide a value that is easy to interpret. The number it provides is larger than the number of votes a county may have in total. Thus, the RMSE is difficult to interpret. Next time, we would like to figure out a way to solve this problem. We attempted to log our outcome variable in the step function in our recipe, but the model did not run when we tried this. Estimating the actual magnitude of the differentials in a presidential election was the most difficult part of this process. In a future attempt, we encourage the consideration of these issues and an appropriate remedy to more accurately predict the voting margins at the county level.
+
+Happy Holidays!
