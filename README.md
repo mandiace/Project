@@ -1,6 +1,6 @@
 # Intro to Data Science: Final Project
 
-### Mandi Acevedo, Kevin Velasco, Isabela Walkin
+### Mandi Acevedo, Kevin Velasco, Bela Walkin
 
 Given the unreliability of polling data in recent presidential elections, we decided to construct a model that would predict the winner of the 2024 presidential election between former president Donald Trump and current vice-president Kamala Harris. To get a more detailed understanding of voting behavior, we chose counties as our unit of observation and collected demographic, economic, and political descriptors as predictors in our model. We utilized 2020 data to train our predictive model.
 
@@ -30,12 +30,19 @@ Due to the unavailability of recent ACS 1-year estimates, we utilized 2022 descr
 
 Utilizing a LASSO model, we correctly predicted the outcome of the 2024 presidential election by aggregating county differentials in a given state to the state level. Our results suggest that the demographic, economic, and political predictors at the county level that we included in our final model are reliable indicators for presidential results, and that counties -- which often paint a more detailed picture of the electorate than the larger state level -- should be prioritized in any electoral predictive analysis. Nonetheless, given the ever-changing political landscape, our model should be limited to use in only contemporary elections, and a restructuring of the model should be considered in the future as the political environment continues to shift.
 
-## Sources
+## Data Sources
+
+McGovern, T. (2024). "United States General Election Presidential Results by District and County from 2008 to 2024." [GitHub Repository]. Retrieved from: <https://github.com/tonmcg/US_County_Level_Election_Results_08-24> 
 
 ReadySignal. "Electoral College Data Table." Retrieved from: <https://readysignal.com/electoral-college-data-table/>
 
-U.S. Census Bureau (2019). "American Community Survey 1-Year Estimates." Retrieved from: <http://api.census.gov/data/2019/acs/acs1>
+U.S. Census Bureau. (2011). "USA Counties: 2011." Retrieved from: <https://www.census.gov/library/publications/2011/compendia/usa-counties-2011.html>
 
---- (2011). "USA Counties: 2011." Retrieved from: <https://www.census.gov/library/publications/2011/compendia/usa-counties-2011.html>
+U.S. Census Bureau. (2019). "American Community Survey 1-Year Estimates." Retrieved from: <http://api.census.gov/data/2019/acs/acs1>
 
---- (2022). "American Community Survey 1-Year Estimates." Retrieved from: <https://api.census.gov/data/2022/acs/acs1>
+U.S. Census Bureau. (2022). "American Community Survey 1-Year Estimates." Retrieved from: <https://api.census.gov/data/2022/acs/acs1>
+
+## Other Sources
+Kulachai, W., Lerdtomornsakul, U., & Homyamyen, P. (2023). Factors Influencing Voting Decision: A Comprehensive Literature Review. Social Sciences, 12(9), 469. https://doi.org/10.3390/socsci12090469
+
+U.S. Census Bureau. (2023). Change to County-Equivalents in the State of Connecticut for 2022 ACS. Census.Gov. Retrieved December 12, 2024, from https://www.census.gov/programs-surveys/acs/technical-documentation/user-notes/2023-01.html
