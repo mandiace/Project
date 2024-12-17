@@ -31,6 +31,9 @@ Due to the unavailability of recent ACS 1-year estimates, we utilized 2022 descr
 Utilizing a LASSO model, we correctly predicted the outcome of the 2024 presidential election by aggregating county differentials in a given state to the state level. Our results suggest that the demographic, economic, and political predictors at the county level that we included in our final model are reliable indicators for presidential results, and that counties -- which often paint a more detailed picture of the electorate than the larger state level -- should be prioritized in any electoral predictive analysis. Nonetheless, given the ever-changing political landscape, our model should be limited to use in only contemporary elections, and a restructuring of the model should be considered in the future as the political environment continues to shift.
 
 ## Sources
+Economic, Environmental and Social Statistics. Organization for Economic Cooperation and Development (OECD) Library iLibrary. (2013). https://www.oecd-ilibrary.org/books 
+
+Kulachai, W., Lerdtomornsakul, U., & Homyamyen, P. (2023b). Factors influencing voting decision: A Comprehensive Literature Review. Social Sciences, 12(9), 469. https://doi.org/10.3390/socsci12090469 
 
 ReadySignal. "Electoral College Data Table." Retrieved from: <https://readysignal.com/electoral-college-data-table/>
 
