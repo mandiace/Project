@@ -1,6 +1,8 @@
 # Intro to Data Science: Final Project
 
 ### Mandi Acevedo, Kevin Velasco, Bela Walkin
+https://mandiace.github.io/Project/
+
 
 Given the unreliability of polling data in recent presidential elections, we decided to construct a model that would predict the winner of the 2024 presidential election between former president Donald Trump and current vice-president Kamala Harris. To get a more detailed understanding of voting behavior, we chose counties as our unit of observation and collected demographic, economic, and political descriptors as predictors in our model. We utilized 2020 data to train our predictive model.
 
