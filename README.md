@@ -30,6 +30,8 @@ Due to the unavailability of recent ACS 1-year estimates, we utilized 2022 descr
 
 Utilizing a LASSO model, we correctly predicted the outcome of the 2024 presidential election by aggregating county differentials in a given state to the state level. Our results suggest that the demographic, economic, and political predictors at the county level that we included in our final model are reliable indicators for presidential results, and that counties -- which often paint a more detailed picture of the electorate than the larger state level -- should be prioritized in any electoral predictive analysis. Nonetheless, given the ever-changing political landscape, our model should be limited to use in only contemporary elections, and a restructuring of the model should be considered in the future as the political environment continues to shift.
 
+Access our repository using this link: <https://github.com/mandiace/Project/tree/main>
+
 ## Data Sources
 
 McGovern, T. (2024). "United States General Election Presidential Results by District and County from 2008 to 2024." [GitHub Repository]. Retrieved from: <https://github.com/tonmcg/US_County_Level_Election_Results_08-24> 
